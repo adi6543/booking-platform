@@ -4,81 +4,89 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getServices, getAvailableSlots, bookSlot, createPaymentOrder, verifyPayment, cancelPaymentOrder } from '../lib/api';
 import { loadRazorpayScript } from '../lib/razorpay';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
+import RazorpayModal from './RazorpayModal';
 import { Button } from './ui/button';
 import { Select } from './ui/select';
-import {
-  CalendarDays, Clock, Store, Loader2, Sparkles, CreditCard, Search
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 function formatDate(d) {
   return new Date(d).toLocaleString('en-IN', {
-    dateStyle: 'medium', timeStyle: 'short', hour12: true
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
   });
 }
 
 // ── Skeleton card ─────────────────────────────────────────────────────────────
 function SlotSkeleton() {
   return (
-    <Card>
-      <CardContent className="p-4 space-y-3 animate-pulse">
-        <div className="flex justify-between">
-          <div className="h-5 w-20 rounded-full bg-white/5" />
-          <div className="h-5 w-12 rounded bg-white/5" />
-        </div>
-        <div className="h-3 w-36 rounded bg-white/5" />
-        <div className="h-3 w-28 rounded bg-white/5" />
-        <div className="h-9 w-full rounded-lg bg-white/5" />
-      </CardContent>
-    </Card>
+    <div className="bg-white border border-border rounded-xl p-5 space-y-3 animate-pulse">
+      <div className="h-5 w-32 rounded bg-zinc-100" />
+      <div className="h-3 w-20 rounded bg-zinc-100" />
+      <div className="h-4 w-40 rounded bg-zinc-100 pt-2" />
+      <div className="pt-4 border-t border-border flex justify-between items-center">
+        <div className="h-6 w-16 rounded bg-zinc-100" />
+        <div className="h-8 w-20 rounded bg-zinc-100" />
+      </div>
+    </div>
   );
 }
 
-function SlotCard({ slot, onBook, booking, verifying }) {
+// ── Slot Card (Strictly adhering to Design Plan Anatomy) ───────────────────────
+function SlotCard({ slot, vendorName, onBook, booking, verifying }) {
   const duration = Math.round((new Date(slot.endTime) - new Date(slot.startTime)) / 60000);
   const price    = slot.serviceId?.price !== undefined ? slot.serviceId.price : 500;
   const isBusy   = booking === slot._id || verifying === slot._id;
 
   return (
-    <Card className="group transition-all duration-200 hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-500/10 hover:-translate-y-0.5">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <Badge variant="available">available</Badge>
-          <div className="text-right">
-            <span className="text-base font-bold text-violet-400">₹{price}</span>
-            <span className="block text-xs text-zinc-600">{duration} min</span>
+    <div className="bg-white border border-border rounded-xl p-5 hover:border-zinc-300 hover:shadow-xs transition-all flex flex-col justify-between">
+      <div>
+        {/* 1. Service name (bold) + vendor name (muted, smaller) — stacked */}
+        <div className="mb-3">
+          <h3 className="font-bold text-zinc-900 text-base leading-snug">
+            {slot.serviceId?.name || 'Local Service'}
+          </h3>
+          {vendorName && (
+            <p className="text-xs text-zinc-500 font-medium mt-0.5">{vendorName}</p>
+          )}
+        </div>
+
+        {/* 2. Date + time & 3. Duration */}
+        <div className="space-y-1 mb-5">
+          <div className="text-xs text-zinc-800 font-medium">
+            {formatDate(slot.startTime)}
+          </div>
+          <div className="text-xs text-zinc-500">
+            {duration} min duration
           </div>
         </div>
-        {/* Service name */}
-        {slot.serviceId?.name && (
-          <p className="text-xs font-medium text-zinc-300 mb-2 truncate">{slot.serviceId.name}</p>
-        )}
-        <div className="space-y-1 text-sm text-zinc-400 mb-4">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
-            <span className="text-xs">{formatDate(slot.startTime)}</span>
-          </div>
-          <div className="flex items-center gap-1.5 pl-5 text-zinc-600">
-            <span className="text-xs">→ {formatDate(slot.endTime)}</span>
-          </div>
+      </div>
+
+      {/* 4. Bottom row: price (left, monospace) and Book button (right) */}
+      <div className="pt-3 border-t border-border flex items-center justify-between mt-auto">
+        <div className="font-mono font-semibold text-lg text-zinc-900">
+          ₹{price}
         </div>
         <Button
           onClick={() => onBook(slot)}
           disabled={isBusy}
           id={`book-slot-${slot._id}`}
-          className="w-full bg-violet-600 hover:bg-violet-500 text-white border-0 text-sm h-9 flex items-center justify-center gap-1.5"
+          size="sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 h-8 text-xs"
         >
           {booking === slot._id ? (
             <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Reserving…</>
           ) : verifying === slot._id ? (
             <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying…</>
           ) : (
-            <><CreditCard className="w-3.5 h-3.5" /> Pay ₹{price} &amp; Book</>
+            'Book slot'
           )}
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -94,6 +102,9 @@ export default function Browse() {
   const [verifying, setVerifying]   = useState(null);
   const [loadingServices, setLoadingServices] = useState(true);
   const [loadingSlots, setLoadingSlots]       = useState(false);
+
+  const [simulatedCheckout, setSimulatedCheckout] = useState(null);
+  const [simulatedVerifying, setSimulatedVerifying] = useState(false);
 
   // Load all services (public)
   useEffect(() => {
@@ -123,6 +134,39 @@ export default function Browse() {
     ? services.filter(s => (s.vendorId?._id ?? s.vendorId) === selVendor)
     : services;
 
+  const handleSimulatedSuccess = async (response) => {
+    if (!simulatedCheckout) return;
+    setSimulatedVerifying(true);
+    try {
+      const verifyResult = await verifyPayment(token, {
+        bookingId: simulatedCheckout.booking._id,
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature: response.razorpay_signature
+      });
+      if (verifyResult.success && verifyResult.booking?.paymentStatus === 'paid') {
+        setSlots(prev => prev.filter(s => s._id !== simulatedCheckout.slotId));
+        toastSuccess(`Booking confirmed for ${verifyResult.booking.serviceId?.name || 'service'}! Check "My Bookings".`);
+        setSimulatedCheckout(null);
+      } else {
+        toastError('Payment verification was not confirmed by the server.');
+      }
+    } catch (err) {
+      toastError(`Payment verification failed: ${err.message}`);
+    } finally {
+      setSimulatedVerifying(false);
+    }
+  };
+
+  const handleSimulatedCancel = async () => {
+    if (!simulatedCheckout) return;
+    try {
+      await cancelPaymentOrder(token, simulatedCheckout.booking._id);
+    } catch (_) {}
+    toastError('Payment cancelled. Slot hold released.');
+    setSimulatedCheckout(null);
+  };
+
   const handleBook = async (slot) => {
     const slotId = slot._id;
     if (!token) { toastError('Please log in as a customer to book a slot.'); return; }
@@ -130,13 +174,24 @@ export default function Browse() {
 
     setBooking(slotId);
     try {
-      const isScriptLoaded = await loadRazorpayScript();
-      if (!isScriptLoaded || !window.Razorpay) {
-        throw new Error('Razorpay checkout SDK failed to load. Check your internet connection.');
-      }
-
       const pendingBooking = await bookSlot(token, slotId);
       const orderData      = await createPaymentOrder(token, pendingBooking._id);
+
+      // In test mode or when simulated order is returned, open realistic sandbox modal
+      if (orderData.isSimulated || !import.meta.env.VITE_RAZORPAY_KEY_ID?.startsWith('rzp_live')) {
+        setSimulatedCheckout({
+          booking: pendingBooking,
+          orderData,
+          slotId
+        });
+        setBooking(null);
+        return;
+      }
+
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded || !window.Razorpay) {
+        throw new Error('Razorpay checkout SDK failed to load.');
+      }
 
       const options = {
         key: orderData.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
@@ -146,7 +201,7 @@ export default function Browse() {
         description: `Booking for ${pendingBooking.serviceId?.name || 'Service'}`,
         order_id: orderData.orderId,
         prefill: { name: user?.name || '', email: user?.email || '' },
-        theme: { color: '#7c3aed' },
+        theme: { color: '#2563EB' },
         handler: async (response) => {
           setVerifying(slotId);
           try {
@@ -158,7 +213,7 @@ export default function Browse() {
             });
             if (verifyResult.success && verifyResult.booking?.paymentStatus === 'paid') {
               setSlots(prev => prev.filter(s => s._id !== slotId));
-              toastSuccess(`🎉 Booking confirmed for ${verifyResult.booking.serviceId?.name || 'service'}! Check "My Bookings".`);
+              toastSuccess(`Booking confirmed for ${verifyResult.booking.serviceId?.name || 'service'}! Check "My Bookings".`);
             } else {
               toastError('Payment verification was not confirmed by the server.');
             }
@@ -192,109 +247,110 @@ export default function Browse() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="animate-fade-up">
-        <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
-          <Search className="w-7 h-7 text-violet-400" />
-          Browse &amp; Book
-        </h1>
-        <p className="text-zinc-400 mt-1">Find available slots from local service providers.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+            Browse services
+          </h1>
+          <p className="text-sm text-zinc-500 mt-0.5">Filter by vendor or service to see live availability.</p>
+        </div>
         {!token && (
-          <p className="text-xs text-zinc-600 mt-2">
-            <Link to="/login" className="text-violet-400 hover:text-violet-300 underline underline-offset-4">Log in</Link> to book a slot.
+          <p className="text-xs text-zinc-600">
+            <Link to="/login" className="text-blue-600 hover:underline font-medium">Log in</Link> to book a slot.
           </p>
         )}
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base text-zinc-300 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-violet-400" /> Filter services
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                <Store className="w-3.5 h-3.5" /> Vendor
-              </label>
-              {loadingServices ? (
-                <div className="h-10 rounded-lg bg-white/5 animate-pulse" />
-              ) : (
-                <Select
-                  value={selVendor}
-                  onChange={e => { setSelVendor(e.target.value); setSelService(''); }}
-                >
-                  <option value="">All vendors</option>
-                  {vendors.map(v => (
-                    <option key={v._id} value={v._id}>{v.name}</option>
-                  ))}
-                </Select>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                <CalendarDays className="w-3.5 h-3.5" /> Service
-              </label>
-              {loadingServices ? (
-                <div className="h-10 rounded-lg bg-white/5 animate-pulse" />
-              ) : (
-                <Select
-                  value={selService}
-                  onChange={e => setSelService(e.target.value)}
-                >
-                  <option value="">All services</option>
-                  {filteredServices.map(s => (
-                    <option key={s._id} value={s._id}>{s.name}</option>
-                  ))}
-                </Select>
-              )}
-            </div>
+      <div className="bg-white border border-border rounded-xl p-4 sm:p-5">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-700">Vendor</label>
+            {loadingServices ? (
+              <div className="h-9 rounded-lg bg-zinc-100 animate-pulse" />
+            ) : (
+              <Select
+                value={selVendor}
+                onChange={e => { setSelVendor(e.target.value); setSelService(''); }}
+              >
+                <option value="">All vendors</option>
+                {vendors.map(v => (
+                  <option key={v._id} value={v._id}>{v.name}</option>
+                ))}
+              </Select>
+            )}
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-700">Service</label>
+            {loadingServices ? (
+              <div className="h-9 rounded-lg bg-zinc-100 animate-pulse" />
+            ) : (
+              <Select
+                value={selService}
+                onChange={e => setSelService(e.target.value)}
+              >
+                <option value="">All services</option>
+                {filteredServices.map(s => (
+                  <option key={s._id} value={s._id}>{s.name}</option>
+                ))}
+              </Select>
+            )}
+          </div>
+        </div>
+      </div>
 
-      {/* Slots grid */}
+      {/* Slots Section */}
       {!selService && !selVendor ? (
-        <div className="text-center py-20">
-          <div className="w-20 h-20 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
-            <CalendarDays className="w-10 h-10 text-violet-400/50" />
-          </div>
-          <p className="text-zinc-500 font-medium">Select a vendor or service to see available slots.</p>
-          <p className="text-xs text-zinc-700 mt-1">Slots update in real-time — no double-bookings possible.</p>
+        <div className="text-center py-16 bg-white border border-border rounded-xl">
+          <p className="text-zinc-700 font-medium text-sm">Select a vendor or service above to view available slots.</p>
+          <p className="text-xs text-zinc-500 mt-1">Real-time availability is synchronized directly with vendor calendars.</p>
         </div>
       ) : loadingSlots ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <SlotSkeleton key={i} />)}
         </div>
       ) : slots.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <Clock className="w-12 h-12 mx-auto mb-4 text-zinc-700" />
-            <p className="text-zinc-500 font-medium">No available slots at the moment.</p>
-            <p className="text-xs text-zinc-700 mt-1">Try a different vendor or check back later.</p>
-          </CardContent>
-        </Card>
+        <div className="bg-white border border-border rounded-xl py-14 text-center">
+          <p className="text-zinc-700 font-medium text-sm">No available slots found for this selection.</p>
+          <p className="text-xs text-zinc-500 mt-1">Please try choosing another service or check back shortly.</p>
+        </div>
       ) : (
         <>
-          <p className="text-sm text-zinc-500">
-            <span className="text-violet-400 font-semibold">{slots.length}</span> slot{slots.length !== 1 ? 's' : ''} available
-          </p>
+          <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
+            <span>
+              Showing <strong className="text-zinc-900 font-semibold">{slots.length}</strong> available slot{slots.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {slots.map(slot => (
-              <SlotCard
-                key={slot._id}
-                slot={slot}
-                onBook={handleBook}
-                booking={booking}
-                verifying={verifying}
-              />
-            ))}
+            {slots.map(slot => {
+              const vendor = vendors.find(v => v._id === (slot.vendorId?._id || slot.vendorId)) || slot.vendorId;
+              const vendorName = vendor?.name || '';
+              return (
+                <SlotCard
+                  key={slot._id}
+                  slot={slot}
+                  vendorName={vendorName}
+                  onBook={handleBook}
+                  booking={booking}
+                  verifying={verifying}
+                />
+              );
+            })}
           </div>
         </>
       )}
+
+      <RazorpayModal
+        isOpen={!!simulatedCheckout}
+        orderData={simulatedCheckout?.orderData}
+        booking={simulatedCheckout?.booking}
+        onSuccess={handleSimulatedSuccess}
+        onCancel={handleSimulatedCancel}
+        verifying={simulatedVerifying}
+      />
     </div>
   );
 }

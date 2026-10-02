@@ -2,12 +2,14 @@ const Booking = require('../models/Booking');
 const Slot = require('../models/Slot');
 
 /**
- * Release pending holds that have expired past their 10-minute window.
- * This ensures abandoned checkouts immediately return slots to 'available'.
+ * Release pending holds that have expired past their 10-minute window,
+ * and automatically unblock slots whose walk-in pause window has passed.
  */
 const releaseExpiredHolds = async () => {
   try {
     const now = new Date();
+
+    // 1. Release expired checkout holds
     const expiredBookings = await Booking.find({
       status: 'pending',
       paymentStatus: 'pending',
@@ -20,6 +22,18 @@ const releaseExpiredHolds = async () => {
       await booking.save();
       await Slot.findByIdAndUpdate(booking.slotId, { status: 'available' });
     }
+
+    // 2. Automatically unblock slots whose temporary walk-in pause has expired
+    await Slot.updateMany(
+      {
+        isBlocked: true,
+        blockedUntil: { $lte: now }
+      },
+      {
+        $set: { isBlocked: false },
+        $unset: { blockedUntil: 1, blockedReason: 1 }
+      }
+    );
 
     return expiredBookings.length;
   } catch (err) {

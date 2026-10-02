@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/button';
 import {
-  CalendarDays, LayoutDashboard, BookOpen, LogOut, Home, Sparkles, Menu, X
+  CalendarDays, LayoutDashboard, BookOpen, LogOut, Home, Menu, X
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -13,8 +13,8 @@ export default function Navbar() {
 
   const isActive = (path) =>
     pathname === path
-      ? 'text-violet-400 bg-violet-500/10'
-      : 'text-zinc-400 hover:text-white hover:bg-white/5';
+      ? 'text-blue-600 font-semibold border-b-2 border-blue-600 rounded-none'
+      : 'text-zinc-600 hover:text-zinc-900 font-medium border-b-2 border-transparent';
 
   const navLinks = user
     ? [
@@ -29,47 +29,48 @@ export default function Navbar() {
               { to: '/vendor/bookings', label: 'Bookings',     icon: <LayoutDashboard className="w-4 h-4" /> },
             ]),
       ]
-    : [];
+    : [
+        { to: '/browse', label: 'Browse Services', icon: <CalendarDays className="w-4 h-4" /> },
+      ];
 
   const closeMobile = () => setMobileOpen(false);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/10 bg-zinc-950/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <nav className="sticky top-0 z-50 border-b border-border bg-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
           {/* Brand */}
-          <Link to="/" className="flex items-center gap-2 group flex-shrink-0" onClick={closeMobile}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
-              <Sparkles className="w-4 h-4 text-white" />
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0" onClick={closeMobile}>
+            <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center font-bold text-white text-sm shadow-sm select-none">
+              B
             </div>
-            <span className="font-bold text-white tracking-tight">BookEase</span>
+            <span className="font-bold text-zinc-900 tracking-tight text-base">BookEase</span>
           </Link>
 
           {/* Desktop nav links */}
-          {user && (
-            <div className="hidden sm:flex items-center gap-1">
-              {navLinks.map(({ to, label, icon }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isActive(to)}`}
-                >
-                  {icon} {label}
-                </Link>
-              ))}
-            </div>
-          )}
+          <div className="hidden sm:flex items-center gap-6 h-full">
+            {navLinks.map(({ to, label, icon }) => (
+              <Link
+                key={to}
+                to={to}
+                className={`inline-flex items-center gap-1.5 h-full px-1 text-sm transition-colors ${isActive(to)}`}
+              >
+                {icon}
+                <span>{label}</span>
+              </Link>
+            ))}
+          </div>
 
           {/* Right side — desktop */}
           <div className="flex items-center gap-3">
             {user ? (
               <>
                 <div className="hidden sm:flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-bold select-none">
+                  <div className="w-7 h-7 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-800 text-xs font-semibold select-none">
                     {user.name?.[0]?.toUpperCase()}
                   </div>
-                  <span className="text-sm text-zinc-300 max-w-[120px] truncate">{user.name}</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded-md bg-white/5 text-zinc-500 border border-white/5 capitalize">
+                  <span className="text-sm font-medium text-zinc-800 max-w-[130px] truncate">{user.name}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 capitalize">
                     {user.role}
                   </span>
                 </div>
@@ -77,14 +78,14 @@ export default function Navbar() {
                   variant="ghost"
                   size="sm"
                   onClick={() => { logout(); closeMobile(); }}
-                  className="text-zinc-400 hover:text-white hover:bg-white/5 gap-1.5"
+                  className="text-zinc-600 hover:text-zinc-900 gap-1.5"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Logout</span>
                 </Button>
                 {/* Mobile hamburger */}
                 <button
-                  className="sm:hidden p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                  className="sm:hidden p-2 rounded-lg text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
                   onClick={() => setMobileOpen(v => !v)}
                   aria-label="Toggle menu"
                 >
@@ -94,10 +95,14 @@ export default function Navbar() {
             ) : (
               <div className="flex items-center gap-2">
                 <Link to="/login">
-                  <Button variant="ghost" size="sm" className="text-zinc-300 hover:text-white">Login</Button>
+                  <Button variant="ghost" size="sm" className="text-zinc-700 hover:text-zinc-900">
+                    Log in
+                  </Button>
                 </Link>
                 <Link to="/signup">
-                  <Button size="sm" className="bg-violet-600 hover:bg-violet-500 text-white border-0">Sign up</Button>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                    Sign up
+                  </Button>
                 </Link>
               </div>
             )}
@@ -106,29 +111,39 @@ export default function Navbar() {
       </div>
 
       {/* Mobile drawer */}
-      {mobileOpen && user && (
-        <div className="sm:hidden border-t border-white/10 bg-zinc-950/95 backdrop-blur-xl px-4 py-3 space-y-1">
-          {/* User info */}
-          <div className="flex items-center gap-2 px-3 py-2 mb-1">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-sm font-bold">
-              {user.name?.[0]?.toUpperCase()}
+      {mobileOpen && (
+        <div className="sm:hidden border-t border-border bg-white px-4 py-3 space-y-2">
+          {user && (
+            <div className="flex items-center gap-2.5 px-3 py-2 mb-2 bg-zinc-50 rounded-lg border border-border">
+              <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-800 text-sm font-bold">
+                {user.name?.[0]?.toUpperCase()}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-sm text-zinc-900 font-medium truncate">{user.name}</p>
+                <p className="text-xs text-zinc-500 capitalize">{user.role}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-white font-medium truncate">{user.name}</p>
-              <p className="text-xs text-zinc-500 capitalize">{user.role}</p>
-            </div>
-          </div>
-          <div className="h-px bg-white/[0.06] mb-2" />
+          )}
           {navLinks.map(({ to, label, icon }) => (
             <Link
               key={to}
               to={to}
               onClick={closeMobile}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive(to)}`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === to ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+              }`}
             >
               {icon} {label}
             </Link>
           ))}
+          {user && (
+            <button
+              onClick={() => { logout(); closeMobile(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+            >
+              <LogOut className="w-4 h-4" /> Log out
+            </button>
+          )}
         </div>
       )}
     </nav>

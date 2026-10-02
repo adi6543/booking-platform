@@ -20,6 +20,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['customer', 'vendor'],
     required: true,
+  },
+  pauseUntil: {
+    type: Date,
+  },
+  pauseReason: {
+    type: String,
   }
 }, { timestamps: true });
 

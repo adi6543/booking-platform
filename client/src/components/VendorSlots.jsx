@@ -5,23 +5,40 @@ import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import {
   getVendorServices, getVendorSlots, createService, deleteService,
-  createSlot, deleteSlot
+  createSlot, deleteSlot,
+  getVendorAvailability, saveVendorAvailability, deleteVendorAvailability, generateVendorSlots,
+  getVendorBlackouts, addVendorBlackout, deleteVendorBlackout,
+  toggleBlockSlot, pauseVendor, resumeVendor, getPauseStatus
 } from '../lib/api';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Select } from './ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Badge } from './ui/badge';
 import {
-  Plus, Trash2, CalendarDays, Clock, Loader2, Layers
+  Loader2, Trash2, Clock, Calendar, Ban, PlayCircle, PauseCircle,
+  Plus, Check, AlertCircle, RefreshCw
 } from 'lucide-react';
 
 function formatDate(d) {
   return new Date(d).toLocaleString('en-IN', {
-    dateStyle: 'medium', timeStyle: 'short', hour12: true
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
   });
 }
+
+function formatTimeOnly(d) {
+  return new Date(d).toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function VendorSlots() {
   const { user, token } = useAuth();
@@ -29,44 +46,215 @@ export default function VendorSlots() {
   const { success: toastSuccess, error: toastError } = useToast();
   const confirm = useConfirm();
 
-  const [services, setServices]     = useState([]);
-  const [slots, setSlots]           = useState([]);
-  const [selService, setSelService] = useState('');
+  // Data states
+  const [services, setServices]         = useState([]);
+  const [slots, setSlots]               = useState([]);
+  const [schedules, setSchedules]       = useState([]);
+  const [blackouts, setBlackouts]       = useState([]);
+  const [pauseInfo, setPauseInfo]       = useState({ isPaused: false });
+  const [selService, setSelService]     = useState('');
 
-  // Service creation
+  // Service creation form
   const [newServiceName, setNewServiceName]   = useState('');
   const [newServicePrice, setNewServicePrice] = useState('500');
 
-  // Slot creation
-  const [slotForm, setSlotForm] = useState({ serviceId: '', startTime: '', endTime: '' });
+  // Recurring schedule form
+  const [schedForm, setSchedForm] = useState({
+    serviceId: '',
+    daysOfWeek: [1, 2, 3, 4, 5, 6], // Mon-Sat default
+    startTime: '09:00',
+    endTime: '18:00',
+    slotDurationMinutes: 60
+  });
 
-  const [loading, setLoading]         = useState(false);
-  const [slotLoading, setSlotLoading] = useState(false);
+  // Blackout date form
+  const [blackoutDate, setBlackoutDate]     = useState('');
+  const [blackoutReason, setBlackoutReason] = useState('Shop closed / Holiday');
+
+  // Single manual slot form
+  const [singleSlotForm, setSingleSlotForm] = useState({ serviceId: '', startTime: '', endTime: '' });
+  const [showManualForm, setShowManualForm] = useState(false);
+
+  // Loading states
+  const [loading, setLoading]           = useState(false);
+  const [slotLoading, setSlotLoading]   = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Active section tab
+  const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'blackouts' | 'services'
 
   // Redirect non-vendors
   useEffect(() => {
     if (user && user.role !== 'vendor') navigate('/');
   }, [user, navigate]);
 
-  // Fetch services
-  useEffect(() => {
+  const loadAllData = async () => {
     if (!token) return;
-    getVendorServices(token)
-      .then(setServices)
-      .catch(e => toastError(e.message));
+    try {
+      const [svcData, schedData, blackData, pauseData] = await Promise.all([
+        getVendorServices(token),
+        getVendorAvailability(token),
+        getVendorBlackouts(token),
+        getPauseStatus(token)
+      ]);
+      setServices(svcData);
+      setSchedules(schedData);
+      setBlackouts(blackData);
+      setPauseInfo(pauseData);
+
+      if (svcData.length > 0 && !schedForm.serviceId) {
+        setSchedForm(f => ({ ...f, serviceId: svcData[0]._id }));
+      }
+    } catch (e) {
+      toastError(e.message);
+    }
+  };
+
+  useEffect(() => {
+    loadAllData();
   }, [token]);
 
-  // Fetch slots when service selection changes
-  useEffect(() => {
+  // Fetch slots whenever selection or token changes
+  const fetchSlots = () => {
     if (!token) return;
     setSlotLoading(true);
     getVendorSlots(token, selService || undefined)
       .then(setSlots)
       .catch(e => toastError(e.message))
       .finally(() => setSlotLoading(false));
+  };
+
+  useEffect(() => {
+    fetchSlots();
   }, [token, selService]);
 
-  // ── Create service ─────────────────────────────────────────────────────────
+  // ── Quick Walk-in Pause / Resume ──────────────────────────────────────────
+  const handleQuickPause = async (minutes) => {
+    setActionLoading(true);
+    try {
+      const res = await pauseVendor(token, minutes, 'Busy with walk-in customers');
+      toastSuccess(res.message);
+      await loadAllData();
+      fetchSlots();
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleQuickResume = async () => {
+    setActionLoading(true);
+    try {
+      const res = await resumeVendor(token);
+      toastSuccess(res.message);
+      await loadAllData();
+      fetchSlots();
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Toggle Block on Individual Slot ────────────────────────────────────────
+  const handleToggleBlock = async (slot) => {
+    const nextState = !slot.isBlocked;
+    try {
+      const res = await toggleBlockSlot(token, slot._id, nextState, nextState ? 'Walk-in customer' : undefined);
+      toastSuccess(res.message);
+      setSlots(prev => prev.map(s => s._id === slot._id ? { ...s, isBlocked: nextState, blockedReason: nextState ? 'Walk-in customer' : undefined } : s));
+      const pData = await getPauseStatus(token);
+      setPauseInfo(pData);
+    } catch (err) {
+      toastError(err.message);
+    }
+  };
+
+  // ── Save Recurring Weekly Schedule ─────────────────────────────────────────
+  const handleSaveSchedule = async (e) => {
+    e.preventDefault();
+    if (!schedForm.serviceId) {
+      toastError('Please select a service for the schedule.');
+      return;
+    }
+    if (schedForm.daysOfWeek.length === 0) {
+      toastError('Please select at least one working day.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await saveVendorAvailability(token, schedForm);
+      toastSuccess(res.message);
+      await loadAllData();
+      fetchSlots();
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSchedule = async (id) => {
+    const ok = await confirm('Remove this recurring schedule? Existing slots will remain, but new ones will no longer generate.');
+    if (!ok) return;
+    try {
+      await deleteVendorAvailability(token, id);
+      setSchedules(prev => prev.filter(s => s._id !== id));
+      toastSuccess('Recurring schedule removed.');
+    } catch (err) {
+      toastError(err.message);
+    }
+  };
+
+  const handleRefreshRollingSlots = async () => {
+    setActionLoading(true);
+    try {
+      const res = await generateVendorSlots(token);
+      toastSuccess(res.message);
+      fetchSlots();
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Blackout Dates ─────────────────────────────────────────────────────────
+  const handleAddBlackout = async (e) => {
+    e.preventDefault();
+    if (!blackoutDate) {
+      toastError('Please pick a date.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await addVendorBlackout(token, { date: blackoutDate, reason: blackoutReason });
+      toastSuccess(res.message);
+      setBlackoutDate('');
+      await loadAllData();
+      fetchSlots();
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteBlackout = async (id, date) => {
+    const ok = await confirm(`Remove closure for ${date}? Available slots for this day will be restored.`);
+    if (!ok) return;
+    try {
+      const res = await deleteVendorBlackout(token, id);
+      toastSuccess(res.message);
+      await loadAllData();
+      fetchSlots();
+    } catch (err) {
+      toastError(err.message);
+    }
+  };
+
+  // ── Create Service ─────────────────────────────────────────────────────────
   const handleCreateService = async (e) => {
     e.preventDefault();
     if (!newServiceName.trim()) return;
@@ -77,56 +265,70 @@ export default function VendorSlots() {
       setServices(prev => [s, ...prev]);
       setNewServiceName('');
       setNewServicePrice('500');
+      if (!schedForm.serviceId) setSchedForm(f => ({ ...f, serviceId: s._id }));
       toastSuccess(`Service "${s.name}" (₹${priceVal}) created!`);
-    } catch (err) { toastError(err.message); }
-    finally { setLoading(false); }
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ── Delete service ─────────────────────────────────────────────────────────
   const handleDeleteService = async (id, name) => {
-    const ok = await confirm(`Delete service "${name}"? Any existing slots for this service will remain.`);
+    const ok = await confirm(`Delete service "${name}"?`);
     if (!ok) return;
     try {
       await deleteService(token, id);
       setServices(prev => prev.filter(s => s._id !== id));
-      if (slotForm.serviceId === id) setSlotForm(f => ({ ...f, serviceId: '' }));
       toastSuccess('Service deleted.');
-    } catch (err) { toastError(err.message); }
+    } catch (err) {
+      toastError(err.message);
+    }
   };
 
-  // ── Create slot ────────────────────────────────────────────────────────────
-  const handleCreateSlot = async (e) => {
+  // ── Single Manual Slot ─────────────────────────────────────────────────────
+  const handleCreateSingleSlot = async (e) => {
     e.preventDefault();
-    const { serviceId, startTime, endTime } = slotForm;
+    const { serviceId, startTime, endTime } = singleSlotForm;
     if (!serviceId || !startTime || !endTime) {
-      toastError('All fields are required.'); return;
-    }
-    if (new Date(endTime) <= new Date(startTime)) {
-      toastError('End time must be after start time.'); return;
+      toastError('All fields required.');
+      return;
     }
     setLoading(true);
     try {
       const slot = await createSlot(token, {
         serviceId,
         startTime: new Date(startTime).toISOString(),
-        endTime:   new Date(endTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
       });
       setSlots(prev => [slot, ...prev]);
-      setSlotForm(f => ({ ...f, startTime: '', endTime: '' }));
-      toastSuccess('Slot created successfully!');
-    } catch (err) { toastError(err.message); }
-    finally { setLoading(false); }
+      setSingleSlotForm(f => ({ ...f, startTime: '', endTime: '' }));
+      toastSuccess('Slot created!');
+    } catch (err) {
+      toastError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ── Delete slot ────────────────────────────────────────────────────────────
   const handleDeleteSlot = async (slotId) => {
-    const ok = await confirm('Delete this slot? It will no longer be available for booking.');
+    const ok = await confirm('Delete this slot?');
     if (!ok) return;
     try {
       await deleteSlot(token, slotId);
       setSlots(prev => prev.filter(s => s._id !== slotId));
       toastSuccess('Slot deleted.');
-    } catch (err) { toastError(err.message); }
+    } catch (err) {
+      toastError(err.message);
+    }
+  };
+
+  const toggleDay = (dayIdx) => {
+    setSchedForm(f => {
+      const exists = f.daysOfWeek.includes(dayIdx);
+      const nextDays = exists ? f.daysOfWeek.filter(d => d !== dayIdx) : [...f.daysOfWeek, dayIdx].sort();
+      return { ...f, daysOfWeek: nextDays };
+    });
   };
 
   const filteredSlots = selService
@@ -134,66 +336,414 @@ export default function VendorSlots() {
     : slots;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="animate-fade-up">
-        <h1 className="text-3xl font-bold text-white tracking-tight">Manage Slots</h1>
-        <p className="text-zinc-400 mt-1">Create services and availability windows for your customers.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
+            Availability &amp; Slots
+          </h1>
+          <p className="text-sm text-zinc-500 mt-0.5">
+            Auto-generate recurring weekly slots and handle offline walk-in customers instantly.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshRollingSlots}
+            disabled={actionLoading}
+            className="text-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${actionLoading ? 'animate-spin' : ''}`} />
+            Refresh 14-Day Slots
+          </Button>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* ── Create Service ────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Layers className="w-5 h-5 text-violet-400" />
-              Add a Service
-            </CardTitle>
-            <CardDescription>Create a new service offering (e.g. "Haircut", "Deep Cleaning")</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateService} className="flex gap-2">
-              <Input
-                value={newServiceName}
-                onChange={e => setNewServiceName(e.target.value)}
-                placeholder="Service name..."
-                className="bg-white/5 border-white/10 text-white placeholder:text-zinc-500 flex-1"
-              />
-              <Input
-                type="number"
-                min="0"
-                value={newServicePrice}
-                onChange={e => setNewServicePrice(e.target.value)}
-                placeholder="₹ Price"
-                className="w-24 bg-white/5 border-white/10 text-white placeholder:text-zinc-500"
-              />
+      {/* ── Feature 2: "Busy Right Now" Walk-in Control Bar ────────────────── */}
+      <div className={`rounded-xl border p-4 transition-all ${
+        pauseInfo.isPaused
+          ? 'bg-amber-50/80 border-amber-300'
+          : 'bg-white border-border'
+      }`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+              pauseInfo.isPaused ? 'bg-amber-500 text-white' : 'bg-blue-50 text-blue-600 border border-blue-200'
+            }`}>
+              {pauseInfo.isPaused ? <PauseCircle className="w-5 h-5" /> : <PlayCircle className="w-5 h-5" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-zinc-900 text-sm">
+                  {pauseInfo.isPaused ? 'Walk-in Mode Active (Paused)' : 'Online Booking Active'}
+                </span>
+                <Badge variant={pauseInfo.isPaused ? 'pending' : 'available'}>
+                  {pauseInfo.isPaused ? 'Walk-in Busy' : 'Online & Open'}
+                </Badge>
+              </div>
+              <p className="text-xs text-zinc-600 mt-0.5">
+                {pauseInfo.isPaused ? (
+                  <>
+                    Temporarily paused until <strong>{formatTimeOnly(pauseInfo.pauseUntil)}</strong>. {pauseInfo.blockedCount} upcoming slots are hidden from online booking.
+                  </>
+                ) : (
+                  'Customers can book your available slots online. Have a walk-in customer? Pause below to instantly block overlapping slots.'
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            {pauseInfo.isPaused ? (
+              <Button
+                size="sm"
+                onClick={handleQuickResume}
+                disabled={actionLoading}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4"
+              >
+                <Check className="w-3.5 h-3.5 mr-1" />
+                Resume Online Booking
+              </Button>
+            ) : (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-semibold text-zinc-500 mr-1">Walk-in Pause:</span>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={actionLoading}
+                  onClick={() => handleQuickPause(30)}
+                  className="bg-white hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800"
+                >
+                  30 min
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={actionLoading}
+                  onClick={() => handleQuickPause(60)}
+                  className="bg-white hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800"
+                >
+                  1 hour
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={actionLoading}
+                  onClick={() => handleQuickPause(120)}
+                  className="bg-white hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800"
+                >
+                  2 hours
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tabs for Configuration ────────────────────────────────────────── */}
+      <div className="flex border-b border-border text-sm font-medium">
+        <button
+          onClick={() => setActiveTab('schedule')}
+          className={`pb-3 px-4 border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'schedule'
+              ? 'border-blue-600 text-blue-600 font-semibold'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
+          }`}
+        >
+          Weekly Recurring Hours ({schedules.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('blackouts')}
+          className={`pb-3 px-4 border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'blackouts'
+              ? 'border-blue-600 text-blue-600 font-semibold'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
+          }`}
+        >
+          Closed Dates &amp; Holidays ({blackouts.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('services')}
+          className={`pb-3 px-4 border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'services'
+              ? 'border-blue-600 text-blue-600 font-semibold'
+              : 'border-transparent text-zinc-500 hover:text-zinc-800'
+          }`}
+        >
+          Manage Services ({services.length})
+        </button>
+      </div>
+
+      {/* ── TAB 1: Weekly Recurring Hours ──────────────────────────────────── */}
+      {activeTab === 'schedule' && (
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Schedule Setter Form */}
+          <div className="bg-white border border-border rounded-xl p-5 space-y-4">
+            <div>
+              <h2 className="font-bold text-zinc-900 text-base">Set Weekly Working Hours</h2>
+              <p className="text-xs text-zinc-500">
+                Choose your service and regular hours. Slots will automatically generate for the rolling next 14 days.
+              </p>
+            </div>
+
+            {services.length === 0 ? (
+              <div className="p-4 bg-zinc-50 border border-border rounded-lg text-xs text-zinc-600">
+                Please create a service first in the <strong>Manage Services</strong> tab.
+              </div>
+            ) : (
+              <form onSubmit={handleSaveSchedule} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-700">Select Service</label>
+                  <Select
+                    value={schedForm.serviceId}
+                    onChange={e => setSchedForm(f => ({ ...f, serviceId: e.target.value }))}
+                  >
+                    {services.map(s => (
+                      <option key={s._id} value={s._id}>{s.name} (₹{s.price})</option>
+                    ))}
+                  </Select>
+                </div>
+
+                {/* Days of week selector */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-700">Working Days</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {DAY_NAMES.map((name, idx) => {
+                      const selected = schedForm.daysOfWeek.includes(idx);
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => toggleDay(idx)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                            selected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-zinc-600 border-border hover:border-zinc-300'
+                          }`}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Opening & Closing Hours */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-zinc-700">Opening Time</label>
+                    <Input
+                      type="time"
+                      value={schedForm.startTime}
+                      onChange={e => setSchedForm(f => ({ ...f, startTime: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-zinc-700">Closing Time</label>
+                    <Input
+                      type="time"
+                      value={schedForm.endTime}
+                      onChange={e => setSchedForm(f => ({ ...f, endTime: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Slot Duration */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-700">Slot Duration</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[30, 45, 60, 90].map(dur => (
+                      <button
+                        key={dur}
+                        type="button"
+                        onClick={() => setSchedForm(f => ({ ...f, slotDurationMinutes: dur }))}
+                        className={`py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                          schedForm.slotDurationMinutes === dur
+                            ? 'bg-blue-50 border-blue-600 text-blue-700 font-semibold ring-1 ring-blue-600'
+                            : 'bg-white border-border text-zinc-600 hover:border-zinc-300'
+                        }`}
+                      >
+                        {dur} min
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                >
+                  {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating Slots…</> : 'Save & Auto-Generate Next 14 Days'}
+                </Button>
+              </form>
+            )}
+          </div>
+
+          {/* Active Recurring Patterns List */}
+          <div className="bg-white border border-border rounded-xl p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-bold text-zinc-900 text-base">Active Weekly Schedules</h2>
+                <span className="text-xs text-zinc-500 font-mono">{schedules.length} active</span>
+              </div>
+              <p className="text-xs text-zinc-500 mb-4">
+                These patterns maintain a live rolling 14-day booking calendar.
+              </p>
+
+              {schedules.length === 0 ? (
+                <div className="py-10 text-center text-zinc-400 text-xs border border-dashed border-border rounded-lg">
+                  No weekly schedules defined yet. Set your working hours on the left to start taking bookings.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {schedules.map(sc => (
+                    <div
+                      key={sc._id}
+                      className="p-3.5 rounded-lg border border-border bg-zinc-50/50 hover:bg-zinc-50 flex items-start justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-zinc-900 text-sm">
+                            {sc.serviceId?.name || 'Service'}
+                          </span>
+                          <span className="text-xs font-mono text-zinc-500 bg-white px-2 py-0.5 rounded border border-border">
+                            {sc.slotDurationMinutes}m slots
+                          </span>
+                        </div>
+                        <div className="text-xs text-zinc-600">
+                          {sc.startTime} – {sc.endTime} ·{' '}
+                          <span className="text-zinc-500">
+                            {sc.daysOfWeek.map(d => DAY_NAMES[d]).join(', ')}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteSchedule(sc._id)}
+                        className="text-zinc-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                        title="Remove schedule"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setShowManualForm(v => !v)}
+                className="text-xs text-blue-600 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {showManualForm ? 'Hide manual slot creator' : 'Need to add a single ad-hoc slot manually?'}
+              </button>
+
+              {showManualForm && (
+                <form onSubmit={handleCreateSingleSlot} className="mt-3 p-3 bg-zinc-50 border border-border rounded-lg space-y-2">
+                  <p className="text-[11px] text-zinc-500 font-medium">Single Custom Slot:</p>
+                  <Select
+                    value={singleSlotForm.serviceId}
+                    onChange={e => setSingleSlotForm(f => ({ ...f, serviceId: e.target.value }))}
+                  >
+                    <option value="">Select service…</option>
+                    {services.map(s => (
+                      <option key={s._id} value={s._id}>{s.name}</option>
+                    ))}
+                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="datetime-local"
+                      value={singleSlotForm.startTime}
+                      onChange={e => setSingleSlotForm(f => ({ ...f, startTime: e.target.value }))}
+                      className="text-xs"
+                    />
+                    <Input
+                      type="datetime-local"
+                      value={singleSlotForm.endTime}
+                      onChange={e => setSingleSlotForm(f => ({ ...f, endTime: e.target.value }))}
+                      className="text-xs"
+                    />
+                  </div>
+                  <Button type="submit" size="xs" disabled={loading} className="w-full bg-blue-600 text-white">
+                    Create single slot
+                  </Button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 2: Closed Dates & Holidays ─────────────────────────────────── */}
+      {activeTab === 'blackouts' && (
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="bg-white border border-border rounded-xl p-5 space-y-4">
+            <div>
+              <h2 className="font-bold text-zinc-900 text-base">Mark Shop Closed / Holiday</h2>
+              <p className="text-xs text-zinc-500">
+                Pick a date when your shop or service is closed. Any unbooked slots on this date will be automatically removed from online browsing.
+              </p>
+            </div>
+
+            <form onSubmit={handleAddBlackout} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-700">Closure Date</label>
+                <Input
+                  type="date"
+                  value={blackoutDate}
+                  onChange={e => setBlackoutDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-700">Reason (Optional)</label>
+                <Input
+                  value={blackoutReason}
+                  onChange={e => setBlackoutReason(e.target.value)}
+                  placeholder="e.g. Diwali Holiday, Staff Leave, Renovation"
+                />
+              </div>
+
               <Button
                 type="submit"
-                id="create-service-btn"
-                disabled={loading || !newServiceName.trim()}
-                className="bg-violet-600 hover:bg-violet-500 text-white border-0 shrink-0"
+                disabled={loading || !blackoutDate}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                <Ban className="w-4 h-4 mr-1.5" />
+                Mark Date Closed
               </Button>
             </form>
+          </div>
 
-            {services.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {services.map(s => (
-                  <div
-                    key={s._id}
-                    className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2 group"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-zinc-200">{s.name}</span>
-                      <span className="text-xs text-violet-400 font-semibold bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
-                        ₹{s.price || 500}
-                      </span>
+          <div className="bg-white border border-border rounded-xl p-5">
+            <h2 className="font-bold text-zinc-900 text-base mb-1">Upcoming Closed Dates</h2>
+            <p className="text-xs text-zinc-500 mb-4">Dates when slot generation is actively skipped.</p>
+
+            {blackouts.length === 0 ? (
+              <div className="py-12 text-center text-zinc-400 text-xs border border-dashed border-border rounded-lg">
+                No closed dates configured. All weekly active days will accept bookings.
+              </div>
+            ) : (
+              <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
+                {blackouts.map(b => (
+                  <div key={b._id} className="p-3 bg-white flex items-center justify-between gap-3 hover:bg-zinc-50">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      <div>
+                        <div className="font-bold text-zinc-900 text-xs font-mono">{b.date}</div>
+                        <div className="text-[11px] text-zinc-500">{b.reason || 'Closed'}</div>
+                      </div>
                     </div>
                     <button
-                      onClick={() => handleDeleteService(s._id, s.name)}
-                      className="text-zinc-600 hover:text-rose-400 transition-colors p-1 rounded opacity-0 group-hover:opacity-100"
-                      aria-label={`Delete ${s.name}`}
+                      onClick={() => handleDeleteBlackout(b._id, b.date)}
+                      className="text-zinc-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                      title="Remove closed date"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -201,135 +751,179 @@ export default function VendorSlots() {
                 ))}
               </div>
             )}
-            {services.length === 0 && (
-              <p className="mt-4 text-xs text-zinc-600">No services yet — add one above.</p>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      )}
 
-        {/* ── Create Slot ───────────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <CalendarDays className="w-5 h-5 text-fuchsia-400" />
-              Add a Slot
-            </CardTitle>
-            <CardDescription>Define an available time window for a service.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateSlot} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-zinc-300">Service</Label>
-                <Select
-                  value={slotForm.serviceId}
-                  onChange={e => setSlotForm(f => ({ ...f, serviceId: e.target.value }))}
-                  disabled={services.length === 0}
-                >
-                  <option value="">Select a service…</option>
-                  {services.map(s => (
-                    <option key={s._id} value={s._id}>{s.name}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-zinc-300">Start Time</Label>
-                <Input
-                  type="datetime-local"
-                  value={slotForm.startTime}
-                  onChange={e => setSlotForm(f => ({ ...f, startTime: e.target.value }))}
-                  className="bg-white/5 border-white/10 text-white [color-scheme:dark]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-zinc-300">End Time</Label>
-                <Input
-                  type="datetime-local"
-                  value={slotForm.endTime}
-                  onChange={e => setSlotForm(f => ({ ...f, endTime: e.target.value }))}
-                  className="bg-white/5 border-white/10 text-white [color-scheme:dark]"
-                />
-              </div>
-              <Button
-                type="submit"
-                id="create-slot-btn"
-                disabled={loading}
-                className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white border-0 mt-1"
-              >
-                {loading
-                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating…</>
-                  : <><Plus className="w-4 h-4 mr-2" /> Create Slot</>}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      {/* ── TAB 3: Manage Services ─────────────────────────────────────────── */}
+      {activeTab === 'services' && (
+        <div className="bg-white border border-border rounded-xl p-5 space-y-4">
+          <div>
+            <h2 className="font-bold text-zinc-900 text-base">Your Services List</h2>
+            <p className="text-xs text-zinc-500">Add or remove the services you offer to customers.</p>
+          </div>
 
-      {/* ── Slots List ─────────────────────────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">Your Slots</h2>
-          <Select
-            value={selService}
-            onChange={e => setSelService(e.target.value)}
-            className="w-48"
-          >
-            <option value="">All services</option>
-            {services.map(s => (
-              <option key={s._id} value={s._id}>{s.name}</option>
-            ))}
-          </Select>
+          <form onSubmit={handleCreateService} className="flex gap-2 max-w-lg">
+            <Input
+              value={newServiceName}
+              onChange={e => setNewServiceName(e.target.value)}
+              placeholder="Service name (e.g. Bridal Makeup)"
+              className="flex-1"
+            />
+            <Input
+              type="number"
+              min="0"
+              value={newServicePrice}
+              onChange={e => setNewServicePrice(e.target.value)}
+              placeholder="₹ Price"
+              className="w-28 font-mono"
+            />
+            <Button
+              type="submit"
+              disabled={loading || !newServiceName.trim()}
+              className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+            >
+              <Plus className="w-4 h-4 mr-1" /> Add
+            </Button>
+          </form>
+
+          {services.length > 0 ? (
+            <div className="divide-y divide-border border border-border rounded-lg overflow-hidden max-w-2xl">
+              {services.map(s => (
+                <div key={s._id} className="flex items-center justify-between p-3 bg-white hover:bg-zinc-50">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-semibold text-zinc-900 text-sm">{s.name}</span>
+                    <span className="text-xs font-mono font-semibold text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                      ₹{s.price}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteService(s._id, s.name)}
+                    className="text-zinc-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-500 italic py-2">No services added yet.</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Table of Generated Slots (Dense Scannable Management) ──────────── */}
+      <div className="bg-white border border-border rounded-xl p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-zinc-900 text-base">14-Day Generated Slots</h2>
+            <p className="text-xs text-zinc-500">
+              Live calendar slots. Click <strong>Block for Walk-in</strong> on any row to instantly hold it for an offline customer.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-500">Filter:</span>
+            <Select
+              value={selService}
+              onChange={e => setSelService(e.target.value)}
+              className="w-44 h-8 text-xs"
+            >
+              <option value="">All services</option>
+              {services.map(s => (
+                <option key={s._id} value={s._id}>{s.name}</option>
+              ))}
+            </Select>
+          </div>
         </div>
 
         {slotLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-4 space-y-2 animate-pulse">
-                  <div className="h-4 w-32 rounded bg-white/5" />
-                  <div className="h-3 w-24 rounded bg-white/5" />
-                  <div className="h-3 w-20 rounded bg-white/5" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <div className="py-12 text-center text-xs text-zinc-400">Loading slots…</div>
         ) : filteredSlots.length === 0 ? (
-          <Card>
-            <CardContent className="py-16 text-center">
-              <Clock className="w-12 h-12 mx-auto mb-4 text-zinc-700" />
-              <p className="text-zinc-500">No slots yet. Add one above.</p>
-            </CardContent>
-          </Card>
+          <div className="py-12 text-center text-zinc-500 text-sm border border-dashed border-border rounded-lg">
+            No slots found. Use the <strong>Weekly Recurring Hours</strong> tab above to generate your schedule.
+          </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredSlots.map(slot => (
-              <Card key={slot._id} className="group hover:border-white/15 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-sm font-medium text-zinc-200 truncate mr-2">
-                      {slot.serviceId?.name ?? '—'}
-                    </span>
-                    <Badge variant={slot.status}>{slot.status}</Badge>
-                  </div>
-                  <div className="space-y-1 text-xs text-zinc-500">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatDate(slot.startTime)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 pl-4.5">
-                      <span>→ {formatDate(slot.endTime)}</span>
-                    </div>
-                  </div>
-                  {slot.status === 'available' && (
-                    <button
-                      onClick={() => handleDeleteSlot(slot._id)}
-                      className="mt-3 flex items-center gap-1 text-xs text-zinc-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+          <div className="overflow-x-auto border border-border rounded-lg">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-zinc-50 border-b border-border text-zinc-600 font-semibold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="py-2.5 px-4">Service</th>
+                  <th className="py-2.5 px-4">Date &amp; Time Window</th>
+                  <th className="py-2.5 px-4">Duration</th>
+                  <th className="py-2.5 px-4">Status</th>
+                  <th className="py-2.5 px-4 text-right">Walk-in Override &amp; Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredSlots.map(slot => {
+                  const duration = Math.round((new Date(slot.endTime) - new Date(slot.startTime)) / 60000);
+                  const isBooked = slot.status === 'booked' || slot.status === 'reserved';
+                  const isBlocked = !!slot.isBlocked;
+
+                  return (
+                    <tr
+                      key={slot._id}
+                      className={`transition-colors ${
+                        isBlocked ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-zinc-50'
+                      }`}
                     >
-                      <Trash2 className="w-3 h-3" /> Delete
-                    </button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                      <td className="py-3 px-4 font-semibold text-zinc-900">
+                        {slot.serviceId?.name ?? '—'}
+                      </td>
+                      <td className="py-3 px-4 text-zinc-700">
+                        <div>{formatDate(slot.startTime)}</div>
+                        <div className="text-zinc-500 text-[11px]">to {formatTimeOnly(slot.endTime)}</div>
+                      </td>
+                      <td className="py-3 px-4 text-zinc-500 font-mono">
+                        {duration}m
+                      </td>
+                      <td className="py-3 px-4">
+                        {isBlocked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 text-amber-800 px-2 py-0.5 text-[11px] font-semibold">
+                            <AlertCircle className="w-3 h-3" />
+                            Blocked (Walk-in)
+                          </span>
+                        ) : (
+                          <Badge variant={slot.status}>
+                            {slot.status}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {!isBooked && (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => handleToggleBlock(slot)}
+                              className={`text-[11px] h-7 px-2.5 font-medium ${
+                                isBlocked
+                                  ? 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                                  : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                              }`}
+                            >
+                              {isBlocked ? 'Unblock Slot' : 'Block for Walk-in'}
+                            </Button>
+                          )}
+
+                          {!isBooked && !isBlocked && (
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => handleDeleteSlot(slot._id)}
+                              className="text-zinc-400 hover:text-red-600 hover:bg-red-50 p-1"
+                              title="Delete individual slot"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

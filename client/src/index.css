@@ -1,32 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @plugin "tailwindcss-animate";
 
-@custom-variant dark (&:is(.dark *));
-
-/* ── Design tokens ────────────────────────────────────────────────────────── */
+/* ── "Bazaar" Design Tokens (Light Mode Focused) ─────────────────────────── */
 :root {
-  --background:             oklch(0.09 0 0);
-  --foreground:             oklch(0.97 0 0);
-  --card:                   oklch(0.12 0 0);
-  --card-foreground:        oklch(0.97 0 0);
-  --popover:                oklch(0.12 0 0);
-  --popover-foreground:     oklch(0.97 0 0);
-  --primary:                oklch(0.65 0.27 293);   /* violet-500 */
-  --primary-foreground:     oklch(0.98 0 0);
-  --secondary:              oklch(0.18 0 0);
-  --secondary-foreground:   oklch(0.97 0 0);
-  --muted:                  oklch(0.18 0 0);
-  --muted-foreground:       oklch(0.55 0 0);
-  --accent:                 oklch(0.18 0 0);
-  --accent-foreground:      oklch(0.97 0 0);
-  --destructive:            oklch(0.55 0.22 27);
-  --destructive-foreground: oklch(0.97 0 0);
-  --border:                 oklch(0.22 0 0);
-  --input:                  oklch(0.16 0 0);
-  --ring:                   oklch(0.65 0.27 293);
-  --radius:                 0.625rem;
+  --background:             #FAFAF8;
+  --foreground:             #1A1D23;
+  --card:                   #FFFFFF;
+  --card-foreground:        #1A1D23;
+  --popover:                #FFFFFF;
+  --popover-foreground:     #1A1D23;
+  --primary:                #2563EB;   /* Trust-coded Blue-600 */
+  --primary-hover:          #1D4ED8;
+  --primary-foreground:     #FFFFFF;
+  --primary-subtle:         #EFF6FF;
+  --secondary:              #F3F4F6;
+  --secondary-foreground:   #1F2937;
+  --muted:                  #F3F4F6;
+  --muted-foreground:       #6B7280;
+  --accent:                 #F3F4F6;
+  --accent-foreground:      #111827;
+  --destructive:            #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border:                 #E5E7EB;
+  --border-strong:          #D1D5DB;
+  --input:                  #D1D5DB;
+  --ring:                   #2563EB;
+  --radius:                 0.75rem;   /* 12px tight modern radius */
 }
 
 @theme inline {
@@ -37,7 +38,9 @@
   --color-popover:            var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary:            var(--primary);
+  --color-primary-hover:      var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle:     var(--primary-subtle);
   --color-secondary:          var(--secondary);
   --color-secondary-foreground:var(--secondary-foreground);
   --color-muted:              var(--muted);
@@ -47,8 +50,11 @@
   --color-destructive:        var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border:             var(--border);
+  --color-border-strong:      var(--border-strong);
   --color-input:              var(--input);
   --color-ring:               var(--ring);
+  --font-sans:                'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:                'JetBrains Mono', monospace;
   --radius-sm:  calc(var(--radius) - 4px);
   --radius-md:  calc(var(--radius) - 2px);
   --radius-lg:  var(--radius);
@@ -63,61 +69,38 @@
   }
 
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: var(--background);
+    color: var(--foreground);
   }
 
   body {
-    @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.65 0.27 293 / 0.15), transparent),
-      radial-gradient(ellipse 60% 40% at 80% 80%, oklch(0.65 0.27 320 / 0.08), transparent);
+    background-color: var(--background);
+    color: var(--foreground);
     min-height: 100vh;
   }
 
-  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.6);
-    cursor: pointer;
+  /* Monospace helpers for pricing / identifiers */
+  .font-mono, [data-mono="true"] {
+    font-family: 'JetBrains Mono', monospace;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Native select dropdown — light mode */
+  select {
+    color-scheme: light;
+  }
+  select option {
+    background-color: #FFFFFF;
+    color: #1A1D23;
+    padding: 8px 12px;
   }
 
   /* Scrollbar */
   ::-webkit-scrollbar        { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track  { background: transparent; }
-  ::-webkit-scrollbar-thumb  { background: oklch(0.3 0 0); border-radius: 999px; }
-  ::-webkit-scrollbar-thumb:hover { background: oklch(0.4 0 0); }
-}
-
-/* ── Glassmorphism card override ─────────────────────────────────────────── */
-.glass {
-  background: oklch(1 0 0 / 0.04);
-  border: 1px solid oklch(1 0 0 / 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* ── Animations ───────────────────────────────────────────────────────────── */
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-up {
-  animation: fade-up 0.35s ease-out both;
-}
-
-@keyframes shimmer {
-  from { background-position: -200% 0; }
-  to   { background-position: 200% 0; }
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    oklch(1 0 0 / 0.03) 25%,
-    oklch(1 0 0 / 0.07) 50%,
-    oklch(1 0 0 / 0.03) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  ::-webkit-scrollbar-track  { background: #FAFAF8; }
+  ::-webkit-scrollbar-thumb  { background: #D1D5DB; border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 }

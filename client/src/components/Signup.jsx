@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Sparkles, Loader2, User, Store } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function Signup() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'customer' });
@@ -39,79 +39,79 @@ export default function Signup() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-[calc(100vh-4rem)] px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-8 shadow-2xl space-y-6 animate-fade-up">
-          {/* Brand */}
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/25 mx-auto">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">Create an account</h1>
-            <p className="text-sm text-zinc-500">Join BookEase to get started</p>
+    <div className="flex justify-center items-center min-h-[calc(100vh-8rem)] px-4 py-12">
+      <div className="w-full max-w-[420px]">
+        <div className="rounded-xl border border-border bg-white p-7 shadow-xs space-y-5">
+          {/* Header */}
+          <div className="text-center space-y-1">
+            <Link to="/" className="inline-flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-sm">
+                B
+              </div>
+              <span className="font-bold text-zinc-900 tracking-tight text-lg">BookEase</span>
+            </Link>
+            <h1 className="text-xl font-bold text-zinc-900">Create an account</h1>
+            <p className="text-xs text-zinc-500">Join BookEase to book or offer local services</p>
           </div>
 
           {error && (
-            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-rose-400 text-sm">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-red-700 text-xs">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="name" className="text-zinc-300 text-sm">Full Name</Label>
+            <div className="space-y-1">
+              <Label htmlFor="name" className="text-zinc-700 text-xs font-semibold">Full name</Label>
               <Input
                 id="name" name="name" required
                 value={formData.name} onChange={handleChange}
                 placeholder="Rahul Sharma"
-                className="bg-white/5 border-white/10 text-white placeholder:text-zinc-600 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-zinc-300 text-sm">Email</Label>
+            <div className="space-y-1">
+              <Label htmlFor="email" className="text-zinc-700 text-xs font-semibold">Email address</Label>
               <Input
                 id="email" type="email" name="email" required
                 value={formData.email} onChange={handleChange}
                 placeholder="you@example.com"
-                className="bg-white/5 border-white/10 text-white placeholder:text-zinc-600 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-zinc-300 text-sm">Password</Label>
+            <div className="space-y-1">
+              <Label htmlFor="password" className="text-zinc-700 text-xs font-semibold">Password</Label>
               <Input
                 id="password" type="password" name="password" required
                 value={formData.password} onChange={handleChange}
-                placeholder="Min. 6 characters"
-                className="bg-white/5 border-white/10 text-white placeholder:text-zinc-600 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
+                placeholder="Minimum 6 characters"
               />
             </div>
 
             {/* Role selector */}
-            <div className="space-y-2">
-              <Label className="text-zinc-300 text-sm">I am a…</Label>
+            <div className="space-y-1.5 pt-1">
+              <Label className="text-zinc-700 text-xs font-semibold">I want to…</Label>
               <RadioGroup
                 defaultValue="customer"
                 onValueChange={(val) => setFormData({ ...formData, role: val })}
                 className="grid grid-cols-2 gap-3"
               >
                 {[
-                  { val: 'customer', label: 'Customer', icon: <User className="w-4 h-4" />, desc: 'Book services' },
-                  { val: 'vendor',   label: 'Vendor',   icon: <Store className="w-4 h-4" />, desc: 'Offer services' },
-                ].map(({ val, label, icon, desc }) => (
+                  { val: 'customer', label: 'Book Services', desc: 'I am a customer' },
+                  { val: 'vendor',   label: 'Offer Services', desc: 'I am a vendor' },
+                ].map(({ val, label, desc }) => (
                   <label
                     key={val}
                     htmlFor={`role-${val}`}
-                    className={`relative flex flex-col gap-1 cursor-pointer rounded-xl border p-3 transition-all
-                      ${formData.role === val
-                        ? 'border-violet-500/60 bg-violet-500/10'
-                        : 'border-white/10 bg-white/[0.02] hover:border-white/20'
-                      }`}
+                    className={`relative flex flex-col gap-0.5 cursor-pointer rounded-lg border p-3 transition-all ${
+                      formData.role === val
+                        ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600'
+                        : 'border-border bg-white hover:border-zinc-300'
+                    }`}
                   >
                     <RadioGroupItem value={val} id={`role-${val}`} className="sr-only" />
-                    <div className={`flex items-center gap-2 font-medium text-sm ${formData.role === val ? 'text-violet-300' : 'text-zinc-300'}`}>
-                      {icon}{label}
-                    </div>
-                    <span className="text-xs text-zinc-600">{desc}</span>
+                    <span className={`text-xs font-bold ${formData.role === val ? 'text-blue-700' : 'text-zinc-900'}`}>
+                      {label}
+                    </span>
+                    <span className="text-[11px] text-zinc-500">{desc}</span>
                   </label>
                 ))}
               </RadioGroup>
@@ -120,15 +120,15 @@ export default function Signup() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-10 bg-violet-600 hover:bg-violet-500 text-white border-0 font-medium mt-2"
+              className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white font-medium mt-1"
             >
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account…</> : 'Create Account'}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account…</> : 'Create account'}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-zinc-600">
+          <p className="text-center text-xs text-zinc-500 pt-2 border-t border-border">
             Already have an account?{' '}
-            <Link to="/login" className="text-violet-400 hover:text-violet-300 font-medium">
+            <Link to="/login" className="text-blue-600 hover:underline font-semibold">
               Log in
             </Link>
           </p>

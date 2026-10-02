@@ -12,175 +12,149 @@ import MyBookings from './components/MyBookings';
 import VendorSlots from './components/VendorSlots';
 import VendorBookings from './components/VendorBookings';
 import { Button } from './components/ui/button';
-import {
-  Sparkles, CalendarDays, Store, ArrowRight, ShieldCheck, IndianRupee, Star
-} from 'lucide-react';
 
 // ── Home ─────────────────────────────────────────────────────────────────────
 function Home() {
   const { user } = useAuth();
 
+  const categories = [
+    { title: 'Plumbing', icon: '🔧', desc: 'Pipe repair, leakage, bathroom fittings' },
+    { title: 'Salon & Grooming', icon: '💇', desc: 'Haircut, facial, styling, bridal' },
+    { title: 'Home Cleaning', icon: '🧹', desc: 'Deep cleaning, kitchen, sofa, floor' },
+    { title: 'Electrician', icon: '⚡', desc: 'Wiring, switches, fan, MCB repair' },
+    { title: 'Home Tutor', icon: '📚', desc: 'Math, science, languages, test prep' },
+    { title: 'Appliance Repair', icon: '🔨', desc: 'AC service, washing machine, fridge' },
+  ];
+
   return (
     <div className="flex flex-col">
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-violet-600/10 blur-[120px]" />
-        <div className="pointer-events-none absolute top-20 right-0 w-[400px] h-[400px] rounded-full bg-fuchsia-600/8 blur-[100px]" />
-
-        <div className="relative max-w-5xl mx-auto px-4 py-24 sm:py-32 text-center animate-fade-up">
-          {/* Tag */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-400 text-xs font-medium mb-6">
-            <Sparkles className="w-3 h-3" />
-            India's #1 local service booking platform
-          </div>
-
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight mb-6 leading-[1.08]">
-            Book Local Services{' '}
-            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
-              Instantly
-            </span>
+      <section className="border-b border-border bg-white">
+        <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24 text-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-zinc-900 tracking-tight leading-[1.15] mb-6">
+            Book a local service in your neighbourhood.
           </h1>
 
-          <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Find trusted vendors near you, browse real-time availability, and secure your slot in one tap.
-            No calls. No waiting. Just book.
+          <p className="text-lg sm:text-xl text-zinc-600 max-w-2xl mx-auto mb-8 leading-relaxed">
+            Electricians, plumbers, salons, tutors, home cleaning — browse real-time availability and pay securely.
           </p>
 
-          {user ? (
-            <div className="flex flex-wrap justify-center gap-4">
-              {user.role === 'customer' ? (
+          <div className="flex flex-wrap justify-center gap-3">
+            {user ? (
+              user.role === 'customer' ? (
                 <>
                   <Link to="/browse">
-                    <Button
-                      size="lg"
-                      id="cta-browse"
-                      className="bg-violet-600 hover:bg-violet-500 text-white border-0 gap-2 shadow-lg shadow-violet-500/25 transition-all hover:shadow-violet-500/40 hover:-translate-y-0.5"
-                    >
-                      Browse Services <ArrowRight className="w-4 h-4" />
+                    <Button size="lg" id="cta-browse" className="bg-blue-600 hover:bg-blue-700 text-white">
+                      Browse services
                     </Button>
                   </Link>
                   <Link to="/my-bookings">
-                    <Button size="lg" variant="outline" className="border-white/10 text-zinc-300 hover:text-white hover:bg-white/5 gap-2">
-                      My Bookings <CalendarDays className="w-4 h-4" />
+                    <Button size="lg" variant="outline">
+                      My Bookings
                     </Button>
                   </Link>
                 </>
               ) : (
                 <>
                   <Link to="/vendor/slots">
-                    <Button
-                      size="lg"
-                      id="cta-manage-slots"
-                      className="bg-violet-600 hover:bg-violet-500 text-white border-0 gap-2 shadow-lg shadow-violet-500/25 transition-all hover:shadow-violet-500/40 hover:-translate-y-0.5"
-                    >
-                      Manage Slots <CalendarDays className="w-4 h-4" />
+                    <Button size="lg" id="cta-manage-slots" className="bg-blue-600 hover:bg-blue-700 text-white">
+                      Manage Slots
                     </Button>
                   </Link>
                   <Link to="/vendor/bookings">
-                    <Button size="lg" variant="outline" className="border-white/10 text-zinc-300 hover:text-white hover:bg-white/5 gap-2">
-                      View Bookings <Store className="w-4 h-4" />
+                    <Button size="lg" variant="outline">
+                      Incoming Bookings
                     </Button>
                   </Link>
                 </>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/signup">
-                <Button
-                  size="lg"
-                  id="cta-get-started"
-                  className="bg-violet-600 hover:bg-violet-500 text-white border-0 gap-2 shadow-lg shadow-violet-500/25 transition-all hover:shadow-violet-500/40 hover:-translate-y-0.5"
-                >
-                  Get Started Free <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button size="lg" variant="outline" className="border-white/10 text-zinc-300 hover:text-white hover:bg-white/5">
-                  Log In
-                </Button>
-              </Link>
-            </div>
-          )}
-
-          {/* Trust indicators */}
-          {!user && (
-            <div className="mt-8 flex flex-wrap justify-center gap-6 text-xs text-zinc-600">
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70" /> No credit card required</span>
-              <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-amber-500/70" /> Verified vendors only</span>
-              <span className="flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 text-violet-500/70" /> Razorpay-secured payments</span>
-            </div>
-          )}
+              )
+            ) : (
+              <>
+                <Link to="/browse">
+                  <Button size="lg" id="cta-browse-guest" className="bg-blue-600 hover:bg-blue-700 text-white">
+                    Browse services
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button size="lg" variant="outline" id="cta-vendor-signup">
+                    I'm a vendor
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* ── Feature cards ── */}
-      <section className="max-w-5xl mx-auto px-4 pb-24 w-full">
-        <div className="grid sm:grid-cols-3 gap-5">
-          {[
-            {
-              icon: <Store className="w-5 h-5 text-violet-400" />,
-              color: 'from-violet-500/20 to-violet-500/5 border-violet-500/20',
-              title: 'Multi-vendor',
-              desc: 'Hundreds of local service providers across categories — salons, cleaning, repair, and more.',
-            },
-            {
-              icon: <CalendarDays className="w-5 h-5 text-fuchsia-400" />,
-              color: 'from-fuchsia-500/20 to-fuchsia-500/5 border-fuchsia-500/20',
-              title: 'Real-time Slots',
-              desc: 'See live availability as slots open up. Double-bookings are mathematically impossible.',
-            },
-            {
-              icon: <ShieldCheck className="w-5 h-5 text-emerald-400" />,
-              color: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/20',
-              title: 'Secure Payments',
-              desc: 'Powered by Razorpay with HMAC SHA-256 server-side verification. Cancel anytime.',
-            },
-          ].map((f, i) => (
-            <div
-              key={f.title}
-              className={`relative p-6 rounded-2xl border bg-gradient-to-b text-left hover:scale-[1.02] transition-transform duration-200 ${f.color}`}
-              style={{ animationDelay: `${i * 80}ms` }}
+      {/* ── Real Category Grid ── */}
+      <section className="max-w-5xl mx-auto px-4 py-14 w-full">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-900">Popular Services</h2>
+            <p className="text-sm text-zinc-500">Pick a category to check available slots</p>
+          </div>
+          <Link to="/browse" className="text-sm font-semibold text-blue-600 hover:underline">
+            View all slots →
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {categories.map((cat) => (
+            <Link
+              key={cat.title}
+              to="/browse"
+              className="p-5 rounded-xl border border-border bg-white hover:border-zinc-300 hover:shadow-xs transition-all text-left group"
             >
-              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mb-4 border border-white/5">
-                {f.icon}
-              </div>
-              <h3 className="font-semibold text-white mb-2">{f.title}</h3>
-              <p className="text-sm text-zinc-500 leading-relaxed">{f.desc}</p>
-            </div>
+              <div className="text-2xl mb-3 select-none">{cat.icon}</div>
+              <h3 className="font-semibold text-zinc-900 text-base mb-1 group-hover:text-blue-600 transition-colors">
+                {cat.title}
+              </h3>
+              <p className="text-xs text-zinc-500 leading-normal line-clamp-2">
+                {cat.desc}
+              </p>
+            </Link>
           ))}
         </div>
       </section>
 
-      {/* ── CTA banner ── */}
-      {!user && (
-        <section className="max-w-5xl mx-auto px-4 pb-24 w-full">
-          <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-600/15 via-fuchsia-600/10 to-transparent p-10 text-center">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_oklch(0.65_0.27_293_/_0.15),_transparent_70%)]" />
-            <h2 className="relative text-3xl font-bold text-white mb-3">Ready to get started?</h2>
-            <p className="relative text-zinc-400 mb-6 max-w-md mx-auto">
-              Join thousands of customers and vendors already on BookEase.
-            </p>
-            <div className="relative flex flex-wrap justify-center gap-3">
-              <Link to="/signup">
-                <Button
-                  size="lg"
-                  id="cta-signup-banner"
-                  className="bg-violet-600 hover:bg-violet-500 text-white border-0 gap-2 shadow-lg shadow-violet-500/25"
-                >
-                  Create Free Account <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link to="/browse">
-                <Button size="lg" variant="outline" className="border-white/10 text-zinc-300 hover:text-white hover:bg-white/5">
-                  Browse without signing in
-                </Button>
-              </Link>
+      {/* ── How it Works (Inline steps) ── */}
+      <section className="border-t border-b border-border bg-white py-12">
+        <div className="max-w-4xl mx-auto px-4">
+          <h2 className="text-center text-sm font-bold uppercase tracking-wider text-zinc-400 mb-8">
+            How it works
+          </h2>
+          <div className="grid sm:grid-cols-3 gap-8 text-center sm:text-left">
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold text-blue-600 font-mono">01</span>
+              <h3 className="text-base font-semibold text-zinc-900">Pick a service</h3>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Filter by service provider or category across verified vendors.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold text-blue-600 font-mono">02</span>
+              <h3 className="text-base font-semibold text-zinc-900">Choose a slot</h3>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                See real-time calendar availability. No double bookings.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold text-blue-600 font-mono">03</span>
+              <h3 className="text-base font-semibold text-zinc-900">Pay &amp; confirm</h3>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Complete payment via UPI or cards with instant confirmation.
+              </p>
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
+
+      {/* ── Trust Statement ── */}
+      <section className="py-10 text-center text-xs text-zinc-500">
+        <div className="max-w-3xl mx-auto px-4">
+          <p>Razorpay-secured payments · Verified local vendors · Instant confirmation</p>
+        </div>
+      </section>
     </div>
   );
 }
@@ -192,7 +166,7 @@ function App() {
       <ToastProvider>
         <ConfirmProvider>
           <BrowserRouter>
-            <div className="min-h-screen flex flex-col">
+            <div className="min-h-screen flex flex-col bg-[#FAFAF8]">
               <Navbar />
               <main className="flex-1">
                 <Routes>

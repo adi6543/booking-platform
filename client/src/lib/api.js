@@ -47,6 +47,42 @@ export const getVendorSlots = (token, serviceId) => {
 export const deleteSlot = (token, slotId) =>
   request('DELETE', `/slots/${slotId}`, { token });
 
+// ── Feature 2: "Busy Right Now" & Slot Blocking ──────────────────────────────
+export const toggleBlockSlot = (token, slotId, isBlocked, reason) =>
+  request('PATCH', `/slots/${slotId}/block`, { token, body: { isBlocked, reason } });
+
+export const pauseVendor = (token, minutes, reason) =>
+  request('POST', '/vendor/pause', { token, body: { minutes, reason } });
+
+export const resumeVendor = (token) =>
+  request('POST', '/vendor/resume', { token });
+
+export const getPauseStatus = (token) =>
+  request('GET', '/vendor/pause-status', { token });
+
+// ── Feature 1: Recurring Weekly Availability ─────────────────────────────────
+export const getVendorAvailability = (token) =>
+  request('GET', '/vendor/availability', { token });
+
+export const saveVendorAvailability = (token, data) =>
+  request('POST', '/vendor/availability', { token, body: data });
+
+export const deleteVendorAvailability = (token, id) =>
+  request('DELETE', `/vendor/availability/${id}`, { token });
+
+export const generateVendorSlots = (token) =>
+  request('POST', '/vendor/availability/generate', { token });
+
+// ── Feature 1: Blackout Dates (Closures / Holidays) ──────────────────────────
+export const getVendorBlackouts = (token) =>
+  request('GET', '/vendor/blackouts', { token });
+
+export const addVendorBlackout = (token, data) =>
+  request('POST', '/vendor/blackouts', { token, body: data });
+
+export const deleteVendorBlackout = (token, id) =>
+  request('DELETE', `/vendor/blackouts/${id}`, { token });
+
 // ── Bookings ──────────────────────────────────────────────────────────────────
 export const bookSlot = (token, slotId) =>
   request('POST', '/bookings', { token, body: { slotId } });

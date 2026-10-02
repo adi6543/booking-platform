@@ -33,33 +33,32 @@ export function ConfirmProvider({ children }) {
         >
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-zinc-900/40 backdrop-blur-xs"
             onClick={() => handleClose(false)}
           />
           {/* Dialog */}
-          <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl p-6 space-y-4 animate-fade-up">
+          <div className="relative w-full max-w-sm rounded-xl border border-border bg-white shadow-xl p-6 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
+              <div className="w-9 h-9 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <h2 id="confirm-title" className="font-semibold text-white text-sm mb-1">Confirm Action</h2>
-                <p className="text-sm text-zinc-400 leading-relaxed">{state.message}</p>
+                <h2 id="confirm-title" className="font-semibold text-zinc-900 text-sm mb-1">Confirm Action</h2>
+                <p className="text-sm text-zinc-600 leading-relaxed">{state.message}</p>
               </div>
             </div>
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end pt-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => handleClose(false)}
-                className="text-zinc-400 hover:text-white hover:bg-white/5"
               >
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={() => handleClose(true)}
-                className="bg-rose-600 hover:bg-rose-500 text-white border-0"
+                className="bg-red-600 hover:bg-red-700 text-white"
               >
                 Confirm
               </Button>

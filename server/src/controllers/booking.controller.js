@@ -33,11 +33,12 @@ const createSlot = async (req, res, next) => {
 
 // ─── GET /api/slots?vendorId=&serviceId= ─────────────────────────────────────
 // Public: list available slots, optionally filtered by vendorId / serviceId.
+// Excludes any slots blocked by walk-ins or offline pauses.
 const getSlots = async (req, res, next) => {
   try {
     await releaseExpiredHolds();
     const { vendorId, serviceId } = req.query;
-    const filter = { status: 'available' };
+    const filter = { status: 'available', isBlocked: { $ne: true } };
     if (vendorId)   filter.vendorId   = vendorId;
     if (serviceId)  filter.serviceId  = serviceId;
 
@@ -94,6 +95,11 @@ const bookSlot = async (req, res, next) => {
     const slot = await Slot.findById(slotId);
     if (!slot) return res.status(404).json({ message: 'Slot not found' });
 
+    // Reject if slot is currently blocked by walk-in or offline pause
+    if (slot.isBlocked) {
+      return res.status(409).json({ message: 'This slot is currently blocked by the vendor (walk-in customer or temporary pause)' });
+    }
+
     // Soft pre-check: reject if slot is already reserved or booked
     if (slot.status !== 'available') {
       return res.status(409).json({ message: 'Slot is already booked or reserved' });
@@ -126,8 +132,15 @@ const bookSlot = async (req, res, next) => {
       throw dbError;
     }
 
-    // Atomically flip slot status to 'reserved' during checkout window
-    await Slot.findByIdAndUpdate(slotId, { status: 'reserved' });
+    // Atomically flip slot status to 'reserved' ensuring it was not blocked or reserved in parallel
+    const reservedSlot = await Slot.findOneAndUpdate(
+      { _id: slotId, status: 'available', isBlocked: { $ne: true } },
+      { status: 'reserved' }
+    );
+    if (!reservedSlot) {
+      await booking.deleteOne();
+      return res.status(409).json({ message: 'Slot was reserved or blocked by the vendor during checkout initiation' });
+    }
 
     const populated = await booking.populate('slotId serviceId vendorId', '-password');
     res.status(201).json(populated);
