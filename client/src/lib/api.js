@@ -97,14 +97,23 @@ export const cancelBooking = (token, bookingId) =>
   request('PATCH', `/bookings/${bookingId}/cancel`, { token });
 
 // ── Services ─────────────────────────────────────────────────────────────────
-export const getServices = () =>
-  request('GET', '/services');
+export const getServices = ({ search, category, vendorId } = {}) => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (category) params.append('category', category);
+  if (vendorId) params.append('vendorId', vendorId);
+  const qs = params.toString() ? `?${params}` : '';
+  return request('GET', `/services${qs}`);
+};
 
 export const getVendorServices = (token) =>
   request('GET', '/services/mine', { token });
 
-export const createService = (token, name, price) =>
-  request('POST', '/services', { token, body: { name, price } });
+export const createService = (token, { name, price, description, category }) =>
+  request('POST', '/services', { token, body: { name, price, description, category } });
+
+export const updateService = (token, serviceId, data) =>
+  request('PUT', `/services/${serviceId}`, { token, body: data });
 
 export const deleteService = (token, serviceId) =>
   request('DELETE', `/services/${serviceId}`, { token });
@@ -118,3 +127,42 @@ export const verifyPayment = (token, paymentData) =>
 
 export const cancelPaymentOrder = (token, bookingId) =>
   request('POST', '/payments/cancel', { token, body: { bookingId } });
+
+// ── Reviews ──────────────────────────────────────────────────────────────────
+export const createReview = (token, { bookingId, rating, comment }) =>
+  request('POST', '/reviews', { token, body: { bookingId, rating, comment } });
+
+export const getVendorReviews = (vendorId, { page = 1, limit = 10 } = {}) =>
+  request('GET', `/reviews/vendor/${vendorId}?page=${page}&limit=${limit}`);
+
+export const getVendorRatingSummary = (vendorId) =>
+  request('GET', `/reviews/vendor/${vendorId}/summary`);
+
+export const getMyReviews = (token) =>
+  request('GET', '/reviews/me', { token });
+
+export const getVendorOwnReviews = (token) =>
+  request('GET', '/reviews/vendor-dashboard', { token });
+
+// ── Vendors ──────────────────────────────────────────────────────────────────
+export const listVendors = ({ category, city, search } = {}) => {
+  const params = new URLSearchParams();
+  if (category) params.append('category', category);
+  if (city) params.append('city', city);
+  if (search) params.append('search', search);
+  const qs = params.toString() ? `?${params}` : '';
+  return request('GET', `/vendors${qs}`);
+};
+
+export const getVendorProfile = (vendorId) =>
+  request('GET', `/vendors/${vendorId}`);
+
+export const updateVendorProfile = (token, data) =>
+  request('PUT', '/vendors/profile', { token, body: data });
+
+export const getVendorDashboardStats = (token) =>
+  request('GET', '/vendors/dashboard/stats', { token });
+
+// ── ChatBot ──────────────────────────────────────────────────────────────────
+export const sendChatMessage = (message, history = []) =>
+  request('POST', '/chat', { body: { message, history } });

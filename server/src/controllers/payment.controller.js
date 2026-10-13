@@ -49,7 +49,12 @@ const createOrder = async (req, res, next) => {
     const servicePrice = booking.serviceId?.price !== undefined ? booking.serviceId.price : 500;
     const amountInPaise = servicePrice * 100;
 
-    const razorpay = getRazorpayInstance();
+    const isPlaceholder = !process.env.RAZORPAY_KEY_ID ||
+      process.env.RAZORPAY_KEY_ID === 'dev_razorpay_key' ||
+      process.env.RAZORPAY_KEY_ID.includes('placeholder') ||
+      process.env.RAZORPAY_KEY_ID.startsWith('dummy');
+
+    const paymentMode = process.env.PAYMENT_MODE || (isPlaceholder ? 'simulated' : 'razorpay');
     const orderOptions = {
       amount: amountInPaise,
       currency: 'INR',
@@ -61,17 +66,31 @@ const createOrder = async (req, res, next) => {
     };
 
     let order;
-    try {
-      const razorpay = getRazorpayInstance();
-      order = await razorpay.orders.create(orderOptions);
-    } catch (rzpErr) {
-      console.warn(`Razorpay orders.create failed (${rzpErr.message || 'API error'}). Falling back to simulated test mode.`);
+    if (paymentMode === 'simulated') {
       order = {
         id: `order_sim_${String(booking._id).slice(-12)}`,
         amount: amountInPaise,
         currency: 'INR',
         isSimulated: true
       };
+    } else {
+      try {
+        const razorpay = getRazorpayInstance();
+        order = await razorpay.orders.create(orderOptions);
+      } catch (rzpErr) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`Razorpay API call failed (${rzpErr.message || 'API error'}). Falling back to simulated order for local development.`);
+          order = {
+            id: `order_sim_${String(booking._id).slice(-12)}`,
+            amount: amountInPaise,
+            currency: 'INR',
+            isSimulated: true
+          };
+        } else {
+          console.error(`Razorpay orders.create failed: ${rzpErr.message || 'API error'}`);
+          return res.status(503).json({ message: 'Payment service temporarily unavailable. Please try again later.' });
+        }
+      }
     }
 
     booking.razorpayOrderId = order.id;
@@ -144,7 +163,13 @@ const verifyPayment = async (req, res, next) => {
     const expectedBuf = Buffer.from(expectedSignature, 'utf-8');
     const receivedBuf = Buffer.from(razorpay_signature, 'utf-8');
 
-    const isSimulatedValid = (
+    const isPlaceholder = !process.env.RAZORPAY_KEY_ID ||
+      process.env.RAZORPAY_KEY_ID === 'dev_razorpay_key' ||
+      process.env.RAZORPAY_KEY_ID.includes('placeholder') ||
+      process.env.RAZORPAY_KEY_ID.startsWith('dummy');
+
+    const paymentMode = process.env.PAYMENT_MODE || (isPlaceholder ? 'simulated' : 'razorpay');
+    const isSimulatedValid = (paymentMode === 'simulated' || razorpay_order_id.startsWith('order_sim_')) && (
       razorpay_order_id.startsWith('order_sim_') &&
       (razorpay_signature === 'simulated_valid_signature' || razorpay_signature === expectedSignature)
     );

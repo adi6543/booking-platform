@@ -43,7 +43,8 @@ const getSlots = async (req, res, next) => {
     if (serviceId)  filter.serviceId  = serviceId;
 
     const slots = await Slot.find(filter)
-      .populate('serviceId', 'name price')
+      .populate('serviceId', 'name price description category')
+      .populate('vendorId', 'name businessName city area category phone')
       .sort({ startTime: 1 });
     res.json(slots);
   } catch (err) { next(err); }

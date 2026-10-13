@@ -1,0 +1,1608 @@
+REVIEW BUNDLE 
+Generated: 04-10-2026 13:13:12.34 
+ 
+======== VERSIONS ======== 
+v24.20.0
+11.19.0
+    "bcrypt": "^6.0.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.10.2",
+    "razorpay": "^2.9.8",
+    "zod": "^4.6.5"
+ 
+======== GIT ======== 
+main
+ M server/src/controllers/payment.controller.js
+?? collect.bat
+?? review-bundle.txt
+?? review-bundle.zip
+?? server/test-bug1-simulated-sig-bypass.js
+65a2aae feat: recurring availability, walk-in blocking and UI redesign
+1e052a3 fix(deploy): configure installCommand for client dependencies on Vercel
+380ed5d feat(phase-7): deployment configurations, strict CORS with CLIENT_URL, and Vercel SPA routing rewrites
+ed40680 feat(phase-6): frontend ui components, dark modern design system, toast alerts, and modal dialogs
+f1655c6 feat(phase-5): razorpay payments, server-side HMAC-SHA256 signature verification, and webhook handler
+688cb55 feat(phase-4): slots and booking core with atomic double-booking prevention
+cfc8e0d feat(phase-3): vendor service management and listing APIs
+404f62b feat(phase-2): authentication system with JWT, bcrypt, role-based access control, and zod validation
+d151c8a feat(phase-1): project setup, dependencies, base server and client scaffolding
+tracked env files: 
+client/.env.example
+server/.env.example
+ 
+======== SECRET SCAN (file names only) ======== 
+none found 
+ 
+======== FILE LISTS ======== 
+C:\Users\jadi4\booking platform\server\src\config
+C:\Users\jadi4\booking platform\server\src\controllers
+C:\Users\jadi4\booking platform\server\src\index.js
+C:\Users\jadi4\booking platform\server\src\middlewares
+C:\Users\jadi4\booking platform\server\src\models
+C:\Users\jadi4\booking platform\server\src\routes
+C:\Users\jadi4\booking platform\server\src\utils
+C:\Users\jadi4\booking platform\server\src\validations
+C:\Users\jadi4\booking platform\server\src\config\db.js
+C:\Users\jadi4\booking platform\server\src\config\razorpay.js
+C:\Users\jadi4\booking platform\server\src\controllers\auth.controller.js
+C:\Users\jadi4\booking platform\server\src\controllers\availability.controller.js
+C:\Users\jadi4\booking platform\server\src\controllers\booking.controller.js
+C:\Users\jadi4\booking platform\server\src\controllers\payment.controller.js
+C:\Users\jadi4\booking platform\server\src\middlewares\auth.middleware.js
+C:\Users\jadi4\booking platform\server\src\middlewares\errorHandler.js
+C:\Users\jadi4\booking platform\server\src\middlewares\role.middleware.js
+C:\Users\jadi4\booking platform\server\src\middlewares\validate.middleware.js
+C:\Users\jadi4\booking platform\server\src\models\BlackoutDate.js
+C:\Users\jadi4\booking platform\server\src\models\Booking.js
+C:\Users\jadi4\booking platform\server\src\models\Service.js
+C:\Users\jadi4\booking platform\server\src\models\Slot.js
+C:\Users\jadi4\booking platform\server\src\models\User.js
+C:\Users\jadi4\booking platform\server\src\models\VendorAvailability.js
+C:\Users\jadi4\booking platform\server\src\routes\auth.routes.js
+C:\Users\jadi4\booking platform\server\src\routes\availability.routes.js
+C:\Users\jadi4\booking platform\server\src\routes\booking.routes.js
+C:\Users\jadi4\booking platform\server\src\routes\health.js
+C:\Users\jadi4\booking platform\server\src\routes\payment.routes.js
+C:\Users\jadi4\booking platform\server\src\routes\service.routes.js
+C:\Users\jadi4\booking platform\server\src\utils\bookingCleanup.js
+C:\Users\jadi4\booking platform\server\src\utils\scheduler.js
+C:\Users\jadi4\booking platform\server\src\utils\slotGenerator.js
+C:\Users\jadi4\booking platform\server\src\validations\auth.schema.js
+C:\Users\jadi4\booking platform\server\src\validations\booking.schema.js
+App.css
+App.jsx
+assets
+components
+context
+index.css
+lib
+main.jsx
+ 
+======== ENV VAR USAGE IN CODE ======== 
+server\src\config\db.js:5:    const conn = await mongoose.connect(process.env.MONGO_URI);
+server\src\config\razorpay.js:7:    const key_id = process.env.RAZORPAY_KEY_ID;
+server\src\config\razorpay.js:8:    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+server\src\controllers\auth.controller.js:9:  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+server\src\controllers\payment.controller.js:52:    const paymentMode = process.env.PAYMENT_MODE || 'razorpay';
+server\src\controllers\payment.controller.js:89:      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_simulated',
+server\src\controllers\payment.controller.js:141:    const secret = process.env.RAZORPAY_KEY_SECRET || 'simulated_test_secret';
+server\src\controllers\payment.controller.js:151:    const paymentMode = process.env.PAYMENT_MODE || 'razorpay';
+server\src\controllers\payment.controller.js:199:    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+server\src\index.js:16:const rawClientUrls = process.env.CLIENT_URL || '';
+server\src\index.js:25:    if (process.env.NODE_ENV !== 'production' && normalizedOrigin.startsWith('http://localhost:')) {
+server\src\index.js:54:const PORT = process.env.PORT || 5000;
+server\src\middlewares\auth.middleware.js:13:      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+server\src\middlewares\errorHandler.js:8:    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+ 
+======== DEPLOYMENT STATUS (health path may differ) ======== 
+render api: HTTP 000
+vercel site: HTTP 302
+ 
+======== BOOKINGS INDEXES (read-only) ======== 
+◇ injected env (6) from .env
+connect error: MongooseServerSelectionError
+ 
+---- FILE: server\src\models\Booking.js ---- 
+const mongoose = require('mongoose');
+
+const bookingSchema = new mongoose.Schema({
+  slotId:            { type: mongoose.Schema.Types.ObjectId, ref: 'Slot',    required: true },
+  customerId:        { type: mongoose.Schema.Types.ObjectId, ref: 'User',    required: true },
+  vendorId:          { type: mongoose.Schema.Types.ObjectId, ref: 'User',    required: true },
+  serviceId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
+  status:            { type: String, enum: ['pending', 'confirmed', 'cancelled', 'failed'], default: 'pending' },
+  paymentStatus:     { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  amount:            { type: Number },
+  currency:          { type: String, default: 'INR' },
+  razorpayOrderId:   { type: String },
+  razorpayPaymentId: { type: String },
+  razorpaySignature: { type: String },
+  expiresAt:         { type: Date }
+}, { timestamps: true });
+
+/**
+ * DOUBLE-BOOKING PREVENTION — Partial Unique Index
+ *
+ * Covers bookings with status in ['pending', 'confirmed'].
+ * Prevents concurrent holds and double-bookings on the same slot.
+ * Cancelled or failed bookings drop out of the partial index filter,
+ * immediately freeing the slot for other customers.
+ */
+bookingSchema.index(
+  { slotId: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed'] } } }
+);
+
+bookingSchema.index({ razorpayOrderId: 1 });
+
+module.exports = mongoose.model('Booking', bookingSchema);
+ 
+---- FILE: server\src\models\Slot.js ---- 
+const mongoose = require('mongoose');
+
+const slotSchema = new mongoose.Schema({
+  vendorId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User',    required: true },
+  serviceId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
+  startTime:     { type: Date, required: true },
+  endTime:       { type: Date, required: true },
+  status:        { type: String, enum: ['available', 'reserved', 'booked'], default: 'available' },
+  isBlocked:     { type: Boolean, default: false },
+  blockedReason: { type: String },
+  blockedUntil:  { type: Date }
+}, { timestamps: true });
+
+// Compound indexes for fast lookup and double-booking guard
+slotSchema.index({ vendorId: 1, serviceId: 1, status: 1, isBlocked: 1 });
+slotSchema.index({ vendorId: 1, startTime: 1, endTime: 1 });
+
+module.exports = mongoose.model('Slot', slotSchema);
+ 
+---- FILE: server\src\controllers\booking.controller.js ---- 
+const Slot = require('../models/Slot');
+const Booking = require('../models/Booking');
+const Service = require('../models/Service');
+const { releaseExpiredHolds } = require('../utils/bookingCleanup');
+
+// ─── POST /api/slots ─────────────────────────────────────────────────────────
+// Vendor creates available slots for one of their services.
+// Ownership check: service must belong to the requesting vendor.
+const createSlot = async (req, res, next) => {
+  try {
+    const { serviceId, startTime, endTime } = req.body;
+
+    const service = await Service.findById(serviceId);
+    if (!service) return res.status(404).json({ message: 'Service not found' });
+    if (String(service.vendorId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized to create slots for this service' });
+    }
+
+    // Validate time ordering
+    if (new Date(endTime) <= new Date(startTime)) {
+      return res.status(400).json({ message: 'endTime must be after startTime' });
+    }
+
+    const slot = await Slot.create({
+      vendorId: req.user._id,
+      serviceId,
+      startTime,
+      endTime
+    });
+    res.status(201).json(slot);
+  } catch (err) { next(err); }
+};
+
+// ─── GET /api/slots?vendorId=&serviceId= ─────────────────────────────────────
+// Public: list available slots, optionally filtered by vendorId / serviceId.
+// Excludes any slots blocked by walk-ins or offline pauses.
+const getSlots = async (req, res, next) => {
+  try {
+    await releaseExpiredHolds();
+    const { vendorId, serviceId } = req.query;
+    const filter = { status: 'available', isBlocked: { $ne: true } };
+    if (vendorId)   filter.vendorId   = vendorId;
+    if (serviceId)  filter.serviceId  = serviceId;
+
+    const slots = await Slot.find(filter)
+      .populate('serviceId', 'name price')
+      .sort({ startTime: 1 });
+    res.json(slots);
+  } catch (err) { next(err); }
+};
+
+// ─── GET /api/slots/vendor — vendor sees all their own slots ─────────────────
+const getVendorSlots = async (req, res, next) => {
+  try {
+    await releaseExpiredHolds();
+    const { serviceId } = req.query;
+    const filter = { vendorId: req.user._id };
+    if (serviceId) filter.serviceId = serviceId;
+
+    const slots = await Slot.find(filter)
+      .populate('serviceId', 'name price')
+      .sort({ startTime: 1 });
+    res.json(slots);
+  } catch (err) { next(err); }
+};
+
+// ─── DELETE /api/slots/:id — vendor deletes an available (unbooked) slot ─────
+const deleteSlot = async (req, res, next) => {
+  try {
+    await releaseExpiredHolds();
+    const slot = await Slot.findById(req.params.id);
+    if (!slot) return res.status(404).json({ message: 'Slot not found' });
+    if (String(slot.vendorId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized to delete this slot' });
+    }
+    if (slot.status !== 'available') {
+      return res.status(400).json({ message: 'Cannot delete a booked or reserved slot' });
+    }
+    await slot.deleteOne();
+    res.json({ message: 'Slot deleted' });
+  } catch (err) { next(err); }
+};
+
+// ─── POST /api/bookings ───────────────────────────────────────────────────────
+// Customer books a slot (creates pending booking with 10-minute hold window).
+// Double-booking guard: partial unique index on (slotId) WHERE status IN ('pending', 'confirmed').
+// Only when payment is verified (via /verify or webhook) does status flip to 'confirmed'
+// and paymentStatus to 'paid'.
+const bookSlot = async (req, res, next) => {
+  try {
+    await releaseExpiredHolds();
+    const { slotId } = req.body;
+
+    // Verify slot exists
+    const slot = await Slot.findById(slotId);
+    if (!slot) return res.status(404).json({ message: 'Slot not found' });
+
+    // Reject if slot is currently blocked by walk-in or offline pause
+    if (slot.isBlocked) {
+      return res.status(409).json({ message: 'This slot is currently blocked by the vendor (walk-in customer or temporary pause)' });
+    }
+
+    // Soft pre-check: reject if slot is already reserved or booked
+    if (slot.status !== 'available') {
+      return res.status(409).json({ message: 'Slot is already booked or reserved' });
+    }
+
+    const service = await Service.findById(slot.serviceId);
+    if (!service) return res.status(404).json({ message: 'Service not found for this slot' });
+
+    const amount = (service.price !== undefined ? service.price : 500) * 100; // in paise
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10-min hold
+
+    // Attempt the Booking insert — partial unique index rejects concurrent holds (11000)
+    let booking;
+    try {
+      booking = await Booking.create({
+        slotId,
+        customerId:    req.user._id,
+        vendorId:      slot.vendorId,
+        serviceId:     slot.serviceId,
+        amount,
+        currency:      'INR',
+        status:        'pending',
+        paymentStatus: 'pending',
+        expiresAt
+      });
+    } catch (dbError) {
+      if (dbError.code === 11000) {
+        return res.status(409).json({ message: 'Slot is already booked or reserved (concurrent request)' });
+      }
+      throw dbError;
+    }
+
+    // Atomically flip slot status to 'reserved' ensuring it was not blocked or reserved in parallel
+    const reservedSlot = await Slot.findOneAndUpdate(
+      { _id: slotId, status: 'available', isBlocked: { $ne: true } },
+      { status: 'reserved' }
+    );
+    if (!reservedSlot) {
+      await booking.deleteOne();
+      return res.status(409).json({ message: 'Slot was reserved or blocked by the vendor during checkout initiation' });
+    }
+
+    const populated = await booking.populate('slotId serviceId vendorId', '-password');
+    res.status(201).json(populated);
+  } catch (err) { next(err); }
+};
+
+// ─── GET /api/bookings/me ─────────────────────────────────────────────────────
+const getMyBookings = async (req, res, next) => {
+  try {
+    await releaseExpiredHolds();
+    const bookings = await Booking.find({ customerId: req.user._id })
+      .populate('slotId', 'startTime endTime status')
+      .populate('serviceId', 'name price')
+      .populate('vendorId', 'name email')
+      .sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (err) { next(err); }
+};
+
+// ─── GET /api/vendor/bookings ─────────────────────────────────────────────────
+const getVendorBookings = async (req, res, next) => {
+  try {
+    await releaseExpiredHolds();
+    const bookings = await Booking.find({ vendorId: req.user._id })
+      .populate('slotId', 'startTime endTime status')
+      .populate('serviceId', 'name price')
+      .populate('customerId', 'name email')
+      .sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (err) { next(err); }
+};
+
+// ─── PATCH /api/bookings/:id/cancel ──────────────────────────────────────────
+// Cancel a booking (customer who booked OR vendor who owns the service).
+// Freeing the slot: sets slot.status back to 'available' AND cancels the
+// booking. Because the partial index only covers status IN ['pending', 'confirmed'],
+// the slot is immediately re-bookable after cancellation.
+const cancelBooking = async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    const isCustomer = String(booking.customerId) === String(req.user._id);
+    const isVendor   = String(booking.vendorId)   === String(req.user._id);
+
+    if (!isCustomer && !isVendor) {
+      return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+    }
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ message: 'Booking is already cancelled' });
+    }
+
+    // 1. Cancel the booking and mark paymentStatus failed if unpaid
+    booking.status = 'cancelled';
+    if (booking.paymentStatus === 'pending') {
+      booking.paymentStatus = 'failed';
+    }
+    await booking.save();
+
+    // 2. Free the slot — atomically
+    await Slot.findByIdAndUpdate(booking.slotId, { status: 'available' });
+
+    const populated = await Booking.findById(booking._id)
+      .populate('slotId', 'startTime endTime status')
+      .populate('serviceId', 'name price')
+      .populate('vendorId', 'name email')
+      .populate('customerId', 'name email');
+
+    res.json({ message: 'Booking cancelled successfully', booking: populated });
+  } catch (err) { next(err); }
+};
+
+module.exports = {
+  createSlot, getSlots, getVendorSlots, deleteSlot,
+  bookSlot, getMyBookings, getVendorBookings, cancelBooking
+};
+ 
+---- FILE: server\src\controllers\payment.controller.js ---- 
+const crypto = require('crypto');
+const Booking = require('../models/Booking');
+const Slot = require('../models/Slot');
+const Service = require('../models/Service');
+const { getRazorpayInstance } = require('../config/razorpay');
+const { releaseExpiredHolds } = require('../utils/bookingCleanup');
+
+// ─── POST /api/payments/create-order ─────────────────────────────────────────
+// Customer creates a Razorpay order for their pending booking.
+// Ownership check: must be customer who owns the booking.
+const createOrder = async (req, res, next) => {
+  try {
+    await releaseExpiredHolds();
+    const { bookingId } = req.body;
+    if (!bookingId) {
+      return res.status(400).json({ message: 'bookingId is required' });
+    }
+
+    const booking = await Booking.findById(bookingId).populate('serviceId slotId');
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Ownership check
+    if (String(booking.customerId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized for this booking' });
+    }
+
+    // Check if already paid
+    if (booking.paymentStatus === 'paid') {
+      return res.status(400).json({ message: 'Booking is already paid and confirmed' });
+    }
+
+    // Check if cancelled or failed
+    if (booking.status === 'cancelled' || booking.status === 'failed') {
+      return res.status(400).json({ message: `Cannot pay for a ${booking.status} booking` });
+    }
+
+    // Check expiration of temporary hold (10 min)
+    if (booking.expiresAt && new Date() > new Date(booking.expiresAt)) {
+      booking.status = 'failed';
+      booking.paymentStatus = 'failed';
+      await booking.save();
+      await Slot.findByIdAndUpdate(booking.slotId._id, { status: 'available' });
+      return res.status(410).json({ message: 'Booking hold expired. Please select the slot again.' });
+    }
+
+    // Calculate price in paise (1 INR = 100 paise)
+    const servicePrice = booking.serviceId?.price !== undefined ? booking.serviceId.price : 500;
+    const amountInPaise = servicePrice * 100;
+
+    const paymentMode = process.env.PAYMENT_MODE || 'razorpay';
+    const orderOptions = {
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: `b_${String(booking._id).slice(-10)}`,
+      notes: {
+        bookingId: String(booking._id),
+        customerId: String(req.user._id)
+      }
+    };
+
+    let order;
+    if (paymentMode === 'simulated') {
+      order = {
+        id: `order_sim_${String(booking._id).slice(-12)}`,
+        amount: amountInPaise,
+        currency: 'INR',
+        isSimulated: true
+      };
+    } else {
+      try {
+        const razorpay = getRazorpayInstance();
+        order = await razorpay.orders.create(orderOptions);
+      } catch (rzpErr) {
+        console.error(`Razorpay orders.create failed: ${rzpErr.message || 'API error'}`);
+        return res.status(503).json({ message: 'Payment service temporarily unavailable. Please try again later.' });
+      }
+    }
+
+    booking.razorpayOrderId = order.id;
+    booking.amount = amountInPaise;
+    await booking.save();
+
+    res.status(200).json({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_simulated',
+      bookingId: booking._id,
+      isSimulated: !!order.isSimulated
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── POST /api/payments/verify ───────────────────────────────────────────────
+// Receives Razorpay's payment response from frontend.
+// Verifies HMAC SHA256 signature server-side.
+// ONLY marks booking as paid and confirmed if signature is valid.
+const verifyPayment = async (req, res, next) => {
+  try {
+    const { bookingId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!bookingId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        message: 'Missing required fields: bookingId, razorpay_order_id, razorpay_payment_id, and razorpay_signature are required'
+      });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Ownership check
+    if (String(booking.customerId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized for this booking' });
+    }
+
+    // Idempotency: if already verified and paid
+    if (booking.paymentStatus === 'paid' && booking.status === 'confirmed') {
+      const populated = await Booking.findById(booking._id)
+        .populate('slotId', 'startTime endTime status')
+        .populate('serviceId', 'name price')
+        .populate('vendorId', 'name email');
+      return res.status(200).json({
+        success: true,
+        message: 'Payment already verified and booking confirmed',
+        booking: populated
+      });
+    }
+
+    // Verify order ID match if set
+    if (booking.razorpayOrderId && booking.razorpayOrderId !== razorpay_order_id) {
+      return res.status(400).json({ message: 'Order ID does not match this booking' });
+    }
+
+    // Cryptographic signature verification using server-side Razorpay secret
+    const secret = process.env.RAZORPAY_KEY_SECRET || 'simulated_test_secret';
+
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    const expectedBuf = Buffer.from(expectedSignature, 'utf-8');
+    const receivedBuf = Buffer.from(razorpay_signature, 'utf-8');
+
+    const paymentMode = process.env.PAYMENT_MODE || 'razorpay';
+    const isSimulatedValid = paymentMode === 'simulated' && (
+      razorpay_order_id.startsWith('order_sim_') &&
+      (razorpay_signature === 'simulated_valid_signature' || razorpay_signature === expectedSignature)
+    );
+
+    const isValid = isSimulatedValid || (
+      expectedBuf.length === receivedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, receivedBuf)
+    );
+
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature. Verification failed.'
+      });
+    }
+
+    // Signature verified: update booking and slot status
+    booking.paymentStatus = 'paid';
+    booking.status = 'confirmed';
+    booking.razorpayPaymentId = razorpay_payment_id;
+    booking.razorpaySignature = razorpay_signature;
+    await booking.save();
+
+    await Slot.findByIdAndUpdate(booking.slotId, { status: 'booked' });
+
+    const populated = await Booking.findById(booking._id)
+      .populate('slotId', 'startTime endTime status')
+      .populate('serviceId', 'name price')
+      .populate('vendorId', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully and booking confirmed',
+      booking: populated
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── POST /api/payments/webhook ──────────────────────────────────────────────
+// Razorpay webhook endpoint — independent source of truth for payment confirmation.
+// Verifies webhook signature against raw request body using RAZORPAY_WEBHOOK_SECRET.
+const handleWebhook = async (req, res, next) => {
+  try {
+    const webhookSignature = req.headers['x-razorpay-signature'];
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+      console.error('RAZORPAY_WEBHOOK_SECRET is not configured');
+      return res.status(500).json({ message: 'Webhook secret not configured on server' });
+    }
+
+    if (!webhookSignature) {
+      return res.status(400).json({ message: 'Missing x-razorpay-signature header' });
+    }
+
+    // Use rawBody Buffer captured by express.json({ verify }) or fallback
+    const rawPayload = req.rawBody || Buffer.from(JSON.stringify(req.body), 'utf-8');
+
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawPayload)
+      .digest('hex');
+
+    const expectedBuf = Buffer.from(expectedSignature, 'utf-8');
+    const receivedBuf = Buffer.from(webhookSignature, 'utf-8');
+
+    const isValid = (
+      expectedBuf.length === receivedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, receivedBuf)
+    );
+
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid webhook signature' });
+    }
+
+    const event = req.body.event;
+    const payload = req.body.payload;
+
+    if (event === 'payment.captured' || event === 'order.paid') {
+      const orderId = payload?.payment?.entity?.order_id || payload?.order?.entity?.id;
+      const paymentId = payload?.payment?.entity?.id;
+
+      let booking = null;
+      if (orderId) {
+        booking = await Booking.findOne({ razorpayOrderId: orderId });
+      }
+      if (!booking && payload?.payment?.entity?.notes?.bookingId) {
+        booking = await Booking.findById(payload.payment.entity.notes.bookingId);
+      }
+
+      if (booking) {
+        booking.paymentStatus = 'paid';
+        booking.status = 'confirmed';
+        if (paymentId) booking.razorpayPaymentId = paymentId;
+        await booking.save();
+        await Slot.findByIdAndUpdate(booking.slotId, { status: 'booked' });
+        console.log(`[Webhook] Booking ${booking._id} confirmed via ${event}`);
+      }
+    } else if (event === 'payment.failed') {
+      const orderId = payload?.payment?.entity?.order_id;
+      let booking = null;
+      if (orderId) {
+        booking = await Booking.findOne({ razorpayOrderId: orderId });
+      }
+      if (booking && booking.paymentStatus !== 'paid') {
+        booking.paymentStatus = 'failed';
+        booking.status = 'failed';
+        await booking.save();
+        await Slot.findByIdAndUpdate(booking.slotId, { status: 'available' });
+        console.log(`[Webhook] Booking ${booking._id} marked failed via ${event}; slot freed`);
+      }
+    }
+
+    res.status(200).json({ status: 'ok' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── POST /api/payments/cancel ───────────────────────────────────────────────
+// Customer explicitly cancels payment modal or dismisses checkout.
+// Frees the slot immediately without waiting for the 10-minute hold window.
+const cancelPayment = async (req, res, next) => {
+  try {
+    const { bookingId } = req.body;
+    if (!bookingId) {
+      return res.status(400).json({ message: 'bookingId is required' });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (String(booking.customerId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized for this booking' });
+    }
+
+    if (booking.paymentStatus === 'paid') {
+      return res.status(400).json({ message: 'Cannot cancel an already paid booking via checkout cancel' });
+    }
+
+    booking.status = 'failed';
+    booking.paymentStatus = 'failed';
+    await booking.save();
+
+    await Slot.findByIdAndUpdate(booking.slotId, { status: 'available' });
+
+    res.status(200).json({ message: 'Checkout cancelled and slot released to available' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  createOrder,
+  verifyPayment,
+  handleWebhook,
+  cancelPayment
+};
+ 
+---- FILE: server\src\utils\bookingCleanup.js ---- 
+const Booking = require('../models/Booking');
+const Slot = require('../models/Slot');
+
+/**
+ * Release pending holds that have expired past their 10-minute window,
+ * and automatically unblock slots whose walk-in pause window has passed.
+ */
+const releaseExpiredHolds = async () => {
+  try {
+    const now = new Date();
+
+    // 1. Release expired checkout holds
+    const expiredBookings = await Booking.find({
+      status: 'pending',
+      paymentStatus: 'pending',
+      expiresAt: { $lt: now }
+    });
+
+    for (const booking of expiredBookings) {
+      booking.status = 'failed';
+      booking.paymentStatus = 'failed';
+      await booking.save();
+      await Slot.findByIdAndUpdate(booking.slotId, { status: 'available' });
+    }
+
+    // 2. Automatically unblock slots whose temporary walk-in pause has expired
+    await Slot.updateMany(
+      {
+        isBlocked: true,
+        blockedUntil: { $lte: now }
+      },
+      {
+        $set: { isBlocked: false },
+        $unset: { blockedUntil: 1, blockedReason: 1 }
+      }
+    );
+
+    return expiredBookings.length;
+  } catch (err) {
+    console.error('Error in releaseExpiredHolds:', err);
+    return 0;
+  }
+};
+
+module.exports = { releaseExpiredHolds };
+ 
+---- FILE: server\src\utils\scheduler.js ---- 
+const { runScheduledSlotGeneration } = require('./slotGenerator');
+const { releaseExpiredHolds } = require('./bookingCleanup');
+
+let intervalId = null;
+let cleanupIntervalId = null;
+
+function initScheduler() {
+  console.log('⏰ Slot scheduler initialized: maintaining rolling 14-day window and walk-in auto-unblocks.');
+
+  // Run cleanup of holds & expired pauses every 2 minutes
+  cleanupIntervalId = setInterval(async () => {
+    try {
+      await releaseExpiredHolds();
+    } catch (err) {
+      console.error('Scheduler hold cleanup error:', err);
+    }
+  }, 2 * 60 * 1000);
+
+  // Run rolling-window slot generation every 12 hours
+  intervalId = setInterval(async () => {
+    try {
+      const generated = await runScheduledSlotGeneration(14);
+      if (generated > 0) {
+        console.log(`⏰ Scheduled generation: added ${generated} new rolling slots.`);
+      }
+    } catch (err) {
+      console.error('Scheduled slot generation error:', err);
+    }
+  }, 12 * 60 * 60 * 1000);
+
+  // Run initial pass on startup
+  setTimeout(async () => {
+    try {
+      await releaseExpiredHolds();
+      await runScheduledSlotGeneration(14);
+    } catch (_) {}
+  }, 3000);
+}
+
+function stopScheduler() {
+  if (intervalId) clearInterval(intervalId);
+  if (cleanupIntervalId) clearInterval(cleanupIntervalId);
+}
+
+module.exports = { initScheduler, stopScheduler };
+ 
+---- FILE: server\src\routes\payment.routes.js ---- 
+const express = require('express');
+const router = express.Router();
+const { protect } = require('../middlewares/auth.middleware');
+const {
+  createOrder,
+  verifyPayment,
+  handleWebhook,
+  cancelPayment
+} = require('../controllers/payment.controller');
+
+// Customer-only endpoints (protected by JWT auth)
+router.post('/create-order', protect, createOrder);
+router.post('/verify', protect, verifyPayment);
+router.post('/cancel', protect, cancelPayment);
+
+// Webhook endpoint (invoked by Razorpay servers; signature verified cryptographically)
+router.post('/webhook', handleWebhook);
+
+module.exports = router;
+ 
+---- FILE: server\src\routes\booking.routes.js ---- 
+const express = require('express');
+const router = express.Router();
+const validate   = require('../middlewares/validate.middleware');
+const { protect } = require('../middlewares/auth.middleware');
+const { authorize } = require('../middlewares/role.middleware');
+const { createSlotSchema, createBookingSchema } = require('../validations/booking.schema');
+const {
+  createSlot, getSlots, getVendorSlots, deleteSlot,
+  bookSlot, getMyBookings, getVendorBookings, cancelBooking
+} = require('../controllers/booking.controller');
+
+// ── Slots ────────────────────────────────────────────────────────────────────
+// POST   /api/slots            — vendor creates a slot for their own service
+// GET    /api/slots            — public: list available slots (query: vendorId, serviceId)
+// GET    /api/slots/vendor     — vendor sees ALL their slots (any status)
+// DELETE /api/slots/:id        — vendor deletes an unbooked slot
+
+router.post('/slots',         protect, authorize('vendor'), validate(createSlotSchema), createSlot);
+router.get('/slots',          getSlots);                                                             // public
+router.get('/slots/vendor',   protect, authorize('vendor'), getVendorSlots);
+router.delete('/slots/:id',   protect, authorize('vendor'), deleteSlot);
+
+// ── Bookings ─────────────────────────────────────────────────────────────────
+// POST  /api/bookings             — customer books a slot
+// GET   /api/bookings/me          — customer's own bookings
+// GET   /api/vendor/bookings      — vendor's incoming bookings
+// PATCH /api/bookings/:id/cancel  — cancel (customer who booked OR owning vendor)
+
+router.post('/bookings',              protect, authorize('customer'), validate(createBookingSchema), bookSlot);
+router.get('/bookings/me',            protect, authorize('customer'), getMyBookings);
+router.get('/vendor/bookings',        protect, authorize('vendor'),   getVendorBookings);
+router.patch('/bookings/:id/cancel',  protect,                        cancelBooking);
+
+module.exports = router;
+ 
+---- FILE: server\src\controllers\availability.controller.js ---- 
+const VendorAvailability = require('../models/VendorAvailability');
+const BlackoutDate = require('../models/BlackoutDate');
+const Slot = require('../models/Slot');
+const Service = require('../models/Service');
+const User = require('../models/User');
+const {
+  generateSlotsForPattern,
+  generateSlotsForVendor,
+  removeUnbookedSlotsForBlackout
+} = require('../utils/slotGenerator');
+
+// ─── GET /api/vendor/availability ─────────────────────────────────────────────
+const getVendorAvailability = async (req, res, next) => {
+  try {
+    const list = await VendorAvailability.find({ vendorId: req.user._id })
+      .populate('serviceId', 'name price')
+      .sort({ createdAt: -1 });
+    res.json(list);
+  } catch (err) { next(err); }
+};
+
+// ─── POST /api/vendor/availability ────────────────────────────────────────────
+// Create or update a recurring weekly schedule for a service
+const saveVendorAvailability = async (req, res, next) => {
+  try {
+    const {
+      serviceId,
+      daysOfWeek,
+      startTime,
+      endTime,
+      slotDurationMinutes,
+      effectiveFrom,
+      effectiveUntil
+    } = req.body;
+
+    if (!serviceId) {
+      return res.status(400).json({ message: 'serviceId is required' });
+    }
+
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+    if (String(service.vendorId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized for this service' });
+    }
+
+    if (!Array.isArray(daysOfWeek) || daysOfWeek.length === 0) {
+      return res.status(400).json({ message: 'daysOfWeek must be a non-empty array of days (0-6)' });
+    }
+
+    if (!startTime || !endTime) {
+      return res.status(400).json({ message: 'startTime and endTime are required (HH:mm format)' });
+    }
+
+    const duration = Number(slotDurationMinutes) >= 15 ? Number(slotDurationMinutes) : 60;
+
+    // Upsert pattern for this vendor & service
+    const pattern = await VendorAvailability.findOneAndUpdate(
+      { vendorId: req.user._id, serviceId },
+      {
+        vendorId: req.user._id,
+        serviceId,
+        daysOfWeek: daysOfWeek.map(Number),
+        startTime,
+        endTime,
+        slotDurationMinutes: duration,
+        effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
+        effectiveUntil: effectiveUntil ? new Date(effectiveUntil) : undefined,
+        isActive: true
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).populate('serviceId', 'name price');
+
+    // On-demand: immediately generate slots for next 14 days
+    const genResult = await generateSlotsForPattern(pattern, 14);
+
+    res.status(200).json({
+      pattern,
+      generatedSlots: genResult.createdCount,
+      skippedSlots: genResult.skippedCount,
+      message: `Weekly schedule saved. Auto-generated ${genResult.createdCount} slots for the next 14 days.`
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── DELETE /api/vendor/availability/:id ──────────────────────────────────────
+const deleteVendorAvailability = async (req, res, next) => {
+  try {
+    const pattern = await VendorAvailability.findById(req.params.id);
+    if (!pattern) return res.status(404).json({ message: 'Schedule pattern not found' });
+    if (String(pattern.vendorId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    await pattern.deleteOne();
+    res.json({ message: 'Recurring schedule removed' });
+  } catch (err) { next(err); }
+};
+
+// ─── POST /api/vendor/availability/generate ───────────────────────────────────
+// On-demand trigger to refresh/generate slots across all vendor patterns for next 14 days
+const generateSlotsOnDemand = async (req, res, next) => {
+  try {
+    const result = await generateSlotsForVendor(req.user._id, 14);
+    res.json({
+      message: `Generated ${result.totalCreated} new slots for the next 14 days (${result.totalSkipped} existing/booked slots preserved).`,
+      totalCreated: result.totalCreated,
+      totalSkipped: result.totalSkipped
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── Blackout Dates ───────────────────────────────────────────────────────────
+const getVendorBlackouts = async (req, res, next) => {
+  try {
+    const blackouts = await BlackoutDate.find({ vendorId: req.user._id }).sort({ date: 1 });
+    res.json(blackouts);
+  } catch (err) { next(err); }
+};
+
+const addVendorBlackout = async (req, res, next) => {
+  try {
+    const { date, reason } = req.body;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ message: 'Valid date in YYYY-MM-DD format is required' });
+    }
+
+    const blackout = await BlackoutDate.findOneAndUpdate(
+      { vendorId: req.user._id, date },
+      { vendorId: req.user._id, date, reason: reason?.trim() || 'Shop closed' },
+      { upsert: true, new: true }
+    );
+
+    // Remove unbooked available slots on this date
+    const removedCount = await removeUnbookedSlotsForBlackout(req.user._id, date);
+
+    res.status(201).json({
+      blackout,
+      removedSlots: removedCount,
+      message: `Date ${date} marked as closed. Removed ${removedCount} unbooked slots.`
+    });
+  } catch (err) { next(err); }
+};
+
+const deleteVendorBlackout = async (req, res, next) => {
+  try {
+    const blackout = await BlackoutDate.findById(req.params.id);
+    if (!blackout) return res.status(404).json({ message: 'Blackout date not found' });
+    if (String(blackout.vendorId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    await blackout.deleteOne();
+
+    // Re-generate slots for rolling window to restore previously blacked out day
+    const genResult = await generateSlotsForVendor(req.user._id, 14);
+
+    res.json({
+      message: `Closure for ${blackout.date} removed. Re-generated ${genResult.totalCreated} slots.`,
+      regeneratedSlots: genResult.totalCreated
+    });
+  } catch (err) { next(err); }
+};
+
+// ─── Feature 2: "Busy Right Now" & Slot Blocking ─────────────────────────────
+
+// Block or unblock an individual slot
+const toggleBlockSlot = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { isBlocked = true, reason } = req.body;
+
+    const slot = await Slot.findById(id);
+    if (!slot) return res.status(404).json({ message: 'Slot not found' });
+    if (String(slot.vendorId) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized for this slot' });
+    }
+
+    if (slot.status === 'booked') {
+      return res.status(400).json({ message: 'Cannot block an already booked slot' });
+    }
+
+    slot.isBlocked = !!isBlocked;
+    slot.blockedReason = isBlocked ? (reason || 'Walk-in customer') : undefined;
+    slot.blockedUntil = undefined;
+    await slot.save();
+
+    res.json({
+      slot,
+      message: isBlocked ? 'Slot blocked for walk-in/offline customer' : 'Slot unblocked and available'
+    });
+  } catch (err) { next(err); }
+};
+
+// Quick Pause for next N minutes (e.g. 30, 60, 120 minutes)
+const quickPause = async (req, res, next) => {
+  try {
+    const minutes = Number(req.body.minutes) > 0 ? Number(req.body.minutes) : 60;
+    const reason  = req.body.reason?.trim() || 'Walk-in customer / Offline pause';
+
+    const now = new Date();
+    const pauseUntil = new Date(now.getTime() + minutes * 60 * 1000);
+
+    // 1. Record vendor-level pause status
+    await User.findByIdAndUpdate(req.user._id, {
+      pauseUntil,
+      pauseReason: reason
+    });
+
+    // 2. Find and block all available unbooked slots overlapping with [now, pauseUntil]
+    const result = await Slot.updateMany(
+      {
+        vendorId: req.user._id,
+        status: 'available',
+        startTime: { $lt: pauseUntil },
+        endTime:   { $gt: now }
+      },
+      {
+        $set: {
+          isBlocked: true,
+          blockedReason: reason,
+          blockedUntil: pauseUntil
+        }
+      }
+    );
+
+    res.json({
+      paused: true,
+      minutes,
+      pauseUntil,
+      blockedCount: result.modifiedCount,
+      message: `Paused for ${minutes} minutes. ${result.modifiedCount} upcoming slots blocked from online booking until ${pauseUntil.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}.`
+    });
+  } catch (err) { next(err); }
+};
+
+// Quick Resume / Unpause
+const quickResume = async (req, res, next) => {
+  try {
+    // 1. Clear vendor-level pause status
+    await User.findByIdAndUpdate(req.user._id, {
+      $unset: { pauseUntil: 1, pauseReason: 1 }
+    });
+
+    // 2. Unblock any slots currently blocked
+    const result = await Slot.updateMany(
+      {
+        vendorId: req.user._id,
+        isBlocked: true,
+        status: 'available'
+      },
+      {
+        $set: { isBlocked: false },
+        $unset: { blockedReason: 1, blockedUntil: 1 }
+      }
+    );
+
+    res.json({
+      resumed: true,
+      unblockedCount: result.modifiedCount,
+      message: `Resumed availability. ${result.modifiedCount} slots are now back online for booking.`
+    });
+  } catch (err) { next(err); }
+};
+
+// Get current pause status
+const getPauseStatus = async (req, res, next) => {
+  try {
+    const now = new Date();
+    const vendor = await User.findById(req.user._id).select('pauseUntil pauseReason');
+
+    const activePauseSlot = await Slot.findOne({
+      vendorId: req.user._id,
+      isBlocked: true,
+      blockedUntil: { $gt: now }
+    }).sort({ blockedUntil: -1 });
+
+    const totalBlockedCount = await Slot.countDocuments({
+      vendorId: req.user._id,
+      isBlocked: true,
+      status: 'available'
+    });
+
+    const isUserPaused = vendor?.pauseUntil && new Date(vendor.pauseUntil) > now;
+    const isSlotPaused = !!activePauseSlot;
+
+    if (isUserPaused || isSlotPaused) {
+      res.json({
+        isPaused: true,
+        pauseUntil: vendor?.pauseUntil || activePauseSlot?.blockedUntil,
+        reason: vendor?.pauseReason || activePauseSlot?.blockedReason || 'Walk-in customer',
+        blockedCount: totalBlockedCount
+      });
+    } else {
+      res.json({
+        isPaused: false,
+        blockedCount: totalBlockedCount
+      });
+    }
+  } catch (err) { next(err); }
+};
+
+module.exports = {
+  getVendorAvailability,
+  saveVendorAvailability,
+  deleteVendorAvailability,
+  generateSlotsOnDemand,
+  getVendorBlackouts,
+  addVendorBlackout,
+  deleteVendorBlackout,
+  toggleBlockSlot,
+  quickPause,
+  quickResume,
+  getPauseStatus
+};
+ 
+---- FILE: server\src\middlewares\auth.middleware.js ---- 
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+const protect = async (req, res, next) => {
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // We exclude password from the attached user object
+      req.user = await User.findById(decoded.id).select('-password');
+      
+      if (!req.user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+      
+      next();
+    } catch (error) {
+      console.error(error);
+      res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+  } else {
+    res.status(401).json({ message: 'Not authorized, no token' });
+  }
+};
+
+module.exports = { protect };
+ 
+---- FILE: server\src\middlewares\role.middleware.js ---- 
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: `User role ${req.user ? req.user.role : 'unknown'} is not authorized to access this route` 
+      });
+    }
+    next();
+  };
+};
+
+module.exports = { authorize };
+ 
+---- FILE: server\src\index.js ---- 
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const connectDB = require('./config/db');
+const errorHandler = require('./middlewares/errorHandler');
+const healthRoutes  = require('./routes/health');
+const authRoutes    = require('./routes/auth.routes');
+const bookingRoutes = require('./routes/booking.routes');
+const serviceRoutes = require('./routes/service.routes');
+const paymentRoutes = require('./routes/payment.routes');
+const availabilityRoutes = require('./routes/availability.routes');
+const { initScheduler } = require('./utils/scheduler');
+
+const app = express();
+
+const rawClientUrls = process.env.CLIENT_URL || '';
+const allowedOrigins = rawClientUrls
+  ? rawClientUrls.split(',').map((url) => url.trim().replace(/\/+$/, ''))
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.replace(/\/+$/, '');
+    if (process.env.NODE_ENV !== 'production' && normalizedOrigin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked: Origin ${origin} is not authorized`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Razorpay-Signature']
+};
+
+app.use(cors(corsOptions));
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
+app.use('/api',          healthRoutes);
+app.use('/api/auth',     authRoutes);
+app.use('/api',          bookingRoutes);
+app.use('/api',          availabilityRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/payments', paymentRoutes);
+
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 5000;
+
+async function startServer() {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      initScheduler();
+    });
+  } catch (err) {
+    console.error('Fatal server boot error:', err);
+    process.exit(1);
+  }
+}
+
+startServer();
+ 
+---- FILE: server\src\config\razorpay.js ---- 
+const Razorpay = require('razorpay');
+
+let razorpayInstance = null;
+
+const getRazorpayInstance = () => {
+  if (!razorpayInstance) {
+    const key_id = process.env.RAZORPAY_KEY_ID;
+    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!key_id || !key_secret) {
+      console.warn('⚠️ Razorpay credentials missing from environment variables');
+    }
+
+    razorpayInstance = new Razorpay({
+      key_id: key_id || 'dummy_key',
+      key_secret: key_secret || 'dummy_secret'
+    });
+  }
+  return razorpayInstance;
+};
+
+module.exports = { getRazorpayInstance };
+ 
+---- FILE: server\test-bug1-simulated-sig-bypass.js ---- 
+/**
+ * Bug 1 — Simulated Signature Bypass — Comprehensive Fix Verification
+ *
+ * Tests:
+ *   A. razorpay mode + Razorpay API failure   → createOrder returns 503
+ *   B. razorpay mode + magic string on sim ID  → verify REJECTS with 400
+ *   C. razorpay mode + valid HMAC              → verify ACCEPTS with 200
+ *   D. razorpay mode + invalid HMAC            → verify REJECTS with 400
+ *   E. simulated mode + magic string           → verify ACCEPTS with 200
+ *
+ * Run: node server/test-bug1-simulated-sig-bypass.js
+ */
+
+'use strict';
+
+process.env.NODE_ENV = 'production';
+process.env.JWT_SECRET = 'test_jwt_secret_bug1';
+process.env.RAZORPAY_KEY_ID = 'rzp_live_REAL_PROD_KEY';
+process.env.RAZORPAY_KEY_SECRET = 'REAL_PROD_SECRET_that_attacker_does_not_know';
+process.env.RAZORPAY_WEBHOOK_SECRET = 'REAL_PROD_WEBHOOK_SECRET';
+
+const crypto = require('crypto');
+const http = require('http');
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+
+const User = require('./src/models/User');
+const Service = require('./src/models/Service');
+const Slot = require('./src/models/Slot');
+const Booking = require('./src/models/Booking');
+const razorpayConfig = require('./src/config/razorpay');
+
+// Controllable mock
+let mockShouldFail = false;
+let mockOrderCounter = 9000;
+razorpayConfig.getRazorpayInstance = () => ({
+  orders: {
+    create: async (options) => {
+      if (mockShouldFail) throw new Error('Razorpay API unavailable');
+      mockOrderCounter++;
+      return {
+        id: `order_real_${mockOrderCounter}`,
+        amount: options.amount,
+        currency: options.currency || 'INR',
+      };
+    }
+  }
+});
+
+const bookingRoutes = require('./src/routes/booking.routes');
+const paymentRoutes = require('./src/routes/payment.routes');
+const errorHandler = require('./src/middlewares/errorHandler');
+
+// ── ANSI helpers ──────────────────────────────────────────────────────────────
+const c = {
+  green:  (s) => `\x1b[32m${s}\x1b[0m`,
+  red:    (s) => `\x1b[31m${s}\x1b[0m`,
+  cyan:   (s) => `\x1b[36m${s}\x1b[0m`,
+  bold:   (s) => `\x1b[1m${s}\x1b[0m`,
+  dim:    (s) => `\x1b[2m${s}\x1b[0m`,
+};
+
+let passed = 0;
+let failed = 0;
+
+function assert(condition, label) {
+  if (condition) {
+    console.log(`  ${c.green('✓')} ${label}`);
+    passed++;
+  } else {
+    console.log(`  ${c.red('✗')} ${label}`);
+    failed++;
+  }
+}
+
+async function runTests() {
+  console.log(c.bold(c.cyan('\n══════════════════════════════════════════════════════════════')));
+  console.log(c.bold(c.cyan('  Bug 1 — Simulated Signature Bypass — Fix Verification')));
+  console.log(c.bold(c.cyan('══════════════════════════════════════════════════════════════\n')));
+
+  let mongoServer, server;
+
+  try {
+    mongoServer = await MongoMemoryServer.create();
+    await mongoose.connect(mongoServer.getUri());
+    console.log(c.dim('  Connected to in-memory MongoDB.\n'));
+
+    const app = express();
+    app.use(cors());
+    app.use(express.json());
+    app.use('/api', bookingRoutes);
+    app.use('/api/payments', paymentRoutes);
+    app.use(errorHandler);
+
+    server = http.createServer(app);
+    await new Promise((resolve) => server.listen(0, resolve));
+    const port = server.address().port;
+    const baseUrl = `http://127.0.0.1:${port}/api`;
+
+    async function api(endpoint, { method = 'GET', token, body } = {}) {
+      const h = { 'Content-Type': 'application/json' };
+      if (token) h['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${baseUrl}${endpoint}`, {
+        method, headers: h,
+        body: body ? JSON.stringify(body) : undefined
+      });
+      return { status: res.status, data: await res.json() };
+    }
+
+    // Helper: create a fresh slot + book it + return { bookingId, slotId }
+    let slotCounter = 0;
+    async function bookFreshSlot(customerToken, vendor, service) {
+      slotCounter++;
+      const slot = await Slot.create({
+        vendorId: vendor._id, serviceId: service._id,
+        startTime: new Date(`2026-12-${String(slotCounter).padStart(2, '0')}T10:00:00Z`),
+        endTime:   new Date(`2026-12-${String(slotCounter).padStart(2, '0')}T11:00:00Z`),
+        status: 'available'
+      });
+      const bookRes = await api('/bookings', {
+        method: 'POST', token: customerToken,
+        body: { slotId: slot._id.toString() }
+      });
+      return { bookingId: bookRes.data._id, slotId: slot._id };
+    }
+
+    // Seed
+    const vendor = await User.create({ name: 'Vendor', email: 'v@b1.com', password: 'x', role: 'vendor' });
+    const customer = await User.create({ name: 'Customer', email: 'c@b1.com', password: 'x', role: 'customer' });
+    const token = jwt.sign({ id: customer._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const service = await Service.create({ name: 'Test Service', price: 500, vendorId: vendor._id });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Test A: razorpay mode + Razorpay API failure → 503
+    // ══════════════════════════════════════════════════════════════════════════
+    console.log(c.bold('Test A — razorpay mode + Razorpay API failure → 503'));
+    process.env.PAYMENT_MODE = 'razorpay';
+    mockShouldFail = true;
+
+    const { bookingId: bookingA } = await bookFreshSlot(token, vendor, service);
+    const orderResA = await api('/payments/create-order', {
+      method: 'POST', token, body: { bookingId: bookingA }
+    });
+
+    assert(orderResA.status === 503, `createOrder returns 503 (got ${orderResA.status})`);
+    assert(orderResA.data.message.includes('temporarily unavailable'), 'Error message says service unavailable');
+    mockShouldFail = false;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Test B: razorpay mode + magic string on order_sim_ ID → REJECTED
+    // ══════════════════════════════════════════════════════════════════════════
+    console.log('\n' + c.bold('Test B — razorpay mode + magic string on order_sim_ ID → 400'));
+    process.env.PAYMENT_MODE = 'razorpay';
+
+    const { bookingId: bookingB } = await bookFreshSlot(token, vendor, service);
+    // Manually inject an order_sim_ ID (as if it leaked from dev or an earlier fallback)
+    await Booking.findByIdAndUpdate(bookingB, { razorpayOrderId: 'order_sim_LEAKED_ID' });
+
+    const verifyB = await api('/payments/verify', {
+      method: 'POST', token,
+      body: {
+        bookingId: bookingB,
+        razorpay_order_id: 'order_sim_LEAKED_ID',
+        razorpay_payment_id: 'pay_FAKE',
+        razorpay_signature: 'simulated_valid_signature'   // ← THE EXPLOIT
+      }
+    });
+
+    assert(verifyB.status === 400, `Magic string REJECTED with 400 (got ${verifyB.status})`);
+    const bB = await Booking.findById(bookingB);
+    assert(bB.paymentStatus === 'pending', `Booking still pending (got ${bB.paymentStatus})`);
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Test C: razorpay mode + valid HMAC → ACCEPTED
+    // ══════════════════════════════════════════════════════════════════════════
+    console.log('\n' + c.bold('Test C — razorpay mode + valid HMAC → 200'));
+    process.env.PAYMENT_MODE = 'razorpay';
+
+    const { bookingId: bookingC, slotId: slotC } = await bookFreshSlot(token, vendor, service);
+    const orderResC = await api('/payments/create-order', {
+      method: 'POST', token, body: { bookingId: bookingC }
+    });
+    const orderIdC = orderResC.data.orderId;
+    const paymentIdC = 'pay_real_valid_123';
+
+    const validSig = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${orderIdC}|${paymentIdC}`)
+      .digest('hex');
+
+    const verifyC = await api('/payments/verify', {
+      method: 'POST', token,
+      body: {
+        bookingId: bookingC,
+        razorpay_order_id: orderIdC,
+        razorpay_payment_id: paymentIdC,
+        razorpay_signature: validSig
+      }
+    });
+
+    assert(verifyC.status === 200, `Valid HMAC accepted with 200 (got ${verifyC.status})`);
+    const bC = await Booking.findById(bookingC);
+    assert(bC.paymentStatus === 'paid', 'Booking marked paid');
+    assert(bC.status === 'confirmed', 'Booking confirmed');
+    const sC = await Slot.findById(slotC);
+    assert(sC.status === 'booked', 'Slot marked booked');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Test D: razorpay mode + invalid HMAC → REJECTED
+    // ══════════════════════════════════════════════════════════════════════════
+    console.log('\n' + c.bold('Test D — razorpay mode + invalid HMAC → 400'));
+    process.env.PAYMENT_MODE = 'razorpay';
+
+    const { bookingId: bookingD } = await bookFreshSlot(token, vendor, service);
+    const orderResD = await api('/payments/create-order', {
+      method: 'POST', token, body: { bookingId: bookingD }
+    });
+
+    const verifyD = await api('/payments/verify', {
+      method: 'POST', token,
+      body: {
+        bookingId: bookingD,
+        razorpay_order_id: orderResD.data.orderId,
+        razorpay_payment_id: 'pay_real_456',
+        razorpay_signature: 'totally_wrong_signature_deadbeef'
+      }
+    });
+
+    assert(verifyD.status === 400, `Invalid HMAC rejected with 400 (got ${verifyD.status})`);
+    const bD = await Booking.findById(bookingD);
+    assert(bD.paymentStatus === 'pending', `Booking still pending (got ${bD.paymentStatus})`);
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Test E: simulated mode + magic string → ACCEPTED
+    // ══════════════════════════════════════════════════════════════════════════
+    console.log('\n' + c.bold('Test E — simulated mode + magic string → 200'));
+    process.env.PAYMENT_MODE = 'simulated';
+
+    const { bookingId: bookingE, slotId: slotE } = await bookFreshSlot(token, vendor, service);
+    const orderResE = await api('/payments/create-order', {
+      method: 'POST', token, body: { bookingId: bookingE }
+    });
+
+    assert(orderResE.data.orderId.startsWith('order_sim_'), `Got simulated order: ${orderResE.data.orderId}`);
+
+    const verifyE = await api('/payments/verify', {
+      method: 'POST', token,
+      body: {
+        bookingId: bookingE,
+        razorpay_order_id: orderResE.data.orderId,
+        razorpay_payment_id: 'pay_sim_789',
+        razorpay_signature: 'simulated_valid_signature'
+      }
+    });
+
+    assert(verifyE.status === 200, `Simulated mode accepts magic string with 200 (got ${verifyE.status})`);
+    const bE = await Booking.findById(bookingE);
+    assert(bE.paymentStatus === 'paid', 'Booking marked paid in simulated mode');
+    assert(bE.status === 'confirmed', 'Booking confirmed in simulated mode');
+    const sE = await Slot.findById(slotE);
+    assert(sE.status === 'booked', 'Slot marked booked in simulated mode');
+
+    // Reset for other tests
+    process.env.PAYMENT_MODE = 'razorpay';
+
+    // ── Summary ─────────────────────────────────────────────────────────────
+    console.log('\n' + c.bold(c.cyan('══════════════════════════════════════════════════════════════')));
+    if (failed === 0) {
+      console.log(c.bold(c.green(`  ✅ ALL ${passed} ASSERTIONS PASSED`)));
+      console.log(c.green('  razorpay mode: API failure → 503          VERIFIED'));
+      console.log(c.green('  razorpay mode: magic string → REJECTED    VERIFIED'));
+      console.log(c.green('  razorpay mode: valid HMAC → ACCEPTED      VERIFIED'));
+      console.log(c.green('  razorpay mode: invalid HMAC → REJECTED    VERIFIED'));
+      console.log(c.green('  simulated mode: magic string → ACCEPTED   VERIFIED'));
+    } else {
+      console.log(c.bold(c.red(`  ❌ ${failed} ASSERTION(S) FAILED (${passed} passed)`)));
+    }
+    console.log(c.bold(c.cyan('══════════════════════════════════════════════════════════════\n')));
+
+    process.exitCode = failed === 0 ? 0 : 1;
+
+  } catch (err) {
+    console.error(c.red('\nFatal test error:'), err);
+    process.exitCode = 1;
+  } finally {
+    if (server) server.close();
+    await mongoose.disconnect();
+    if (mongoServer) await mongoServer.stop();
+  }
+}
+
+runTests();
+ 
+---- FILE: test-concurrency.js ---- 
+[missing file] 

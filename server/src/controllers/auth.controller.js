@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { signupSchema, loginSchema } = require('../validations/auth.validation');
 
 const SALT_ROUNDS = 10;
 const JWT_EXPIRES_IN = '7d'; // User requested 7 days
@@ -11,9 +12,31 @@ const generateToken = (userId) => {
   });
 };
 
+const buildUserResponse = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  phone: user.phone,
+  businessName: user.businessName,
+  businessDescription: user.businessDescription,
+  category: user.category,
+  city: user.city,
+  area: user.area,
+  pinCode: user.pinCode,
+  createdAt: user.createdAt,
+});
+
 const signup = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    // Validate input
+    const parsed = signupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0]?.message || 'Invalid input';
+      return res.status(400).json({ message: firstError });
+    }
+
+    const { name, email, password, role } = parsed.data;
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -34,13 +57,7 @@ const signup = async (req, res, next) => {
     // Explicitly returning mapped user object to avoid returning password
     res.status(201).json({
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-      },
+      user: buildUserResponse(user),
     });
   } catch (error) {
     next(error);
@@ -49,7 +66,14 @@ const signup = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    // Validate input
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0]?.message || 'Invalid input';
+      return res.status(400).json({ message: firstError });
+    }
+
+    const { email, password } = parsed.data;
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -65,13 +89,7 @@ const login = async (req, res, next) => {
 
     res.json({
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-      },
+      user: buildUserResponse(user),
     });
   } catch (error) {
     next(error);
@@ -82,13 +100,7 @@ const getMe = async (req, res, next) => {
   try {
     // req.user is attached by authMiddleware
     res.json({
-      user: {
-        _id: req.user._id,
-        name: req.user.name,
-        email: req.user.email,
-        role: req.user.role,
-        createdAt: req.user.createdAt,
-      },
+      user: buildUserResponse(req.user),
     });
   } catch (error) {
     next(error);

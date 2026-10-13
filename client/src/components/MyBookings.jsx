@@ -3,13 +3,16 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
-import { getMyBookings, cancelBooking, createPaymentOrder, verifyPayment, cancelPaymentOrder } from '../lib/api';
+import {
+  getMyBookings, cancelBooking, createPaymentOrder,
+  verifyPayment, cancelPaymentOrder, getMyReviews, createReview
+} from '../lib/api';
 import { loadRazorpayScript } from '../lib/razorpay';
 import RazorpayModal from './RazorpayModal';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Select } from './ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star, MessageSquare, X } from 'lucide-react';
 
 function formatDate(d) {
   return new Date(d).toLocaleString('en-IN', {
@@ -30,23 +33,52 @@ function formatTimeOnly(d) {
   });
 }
 
+const RATING_LABELS = {
+  1: 'Terrible',
+  2: 'Poor',
+  3: 'Average',
+  4: 'Good',
+  5: 'Excellent'
+};
+
 export default function MyBookings() {
   const { user, token } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
   const confirm = useConfirm();
+
   const [bookings, setBookings]     = useState([]);
+  const [reviewsMap, setReviewsMap] = useState({}); // bookingId -> review
   const [loading, setLoading]       = useState(true);
   const [filter, setFilter]         = useState('all');
   const [cancelling, setCancelling] = useState(null);
   const [paying, setPaying]         = useState(null);
+
   const [simulatedCheckout, setSimulatedCheckout] = useState(null);
   const [simulatedVerifying, setSimulatedVerifying] = useState(false);
+
+  // Review Modal state
+  const [reviewModalBooking, setReviewModalBooking] = useState(null);
+  const [reviewRating, setReviewRating]             = useState(5);
+  const [hoverRating, setHoverRating]               = useState(0);
+  const [reviewComment, setReviewComment]           = useState('');
+  const [submittingReview, setSubmittingReview]     = useState(false);
 
   const fetchBookings = () => {
     if (!token) return;
     setLoading(true);
-    getMyBookings(token)
-      .then(setBookings)
+    Promise.all([
+      getMyBookings(token),
+      getMyReviews(token).catch(() => [])
+    ])
+      .then(([bookingsData, reviewsData]) => {
+        setBookings(bookingsData);
+        const map = {};
+        (reviewsData || []).forEach(r => {
+          const bId = r.bookingId?._id || r.bookingId;
+          if (bId) map[bId] = r;
+        });
+        setReviewsMap(map);
+      })
       .catch(e => toastError(e.message))
       .finally(() => setLoading(false));
   };
@@ -104,7 +136,6 @@ export default function MyBookings() {
     try {
       const orderData = await createPaymentOrder(token, b._id);
 
-      // In test mode or when simulated order is returned, open sandbox modal
       if (orderData.isSimulated || !import.meta.env.VITE_RAZORPAY_KEY_ID?.startsWith('rzp_live')) {
         setSimulatedCheckout({
           booking: b,
@@ -162,6 +193,32 @@ export default function MyBookings() {
     } catch (err) {
       toastError(err.message);
       setPaying(null);
+    }
+  };
+
+  const openReviewModal = (booking) => {
+    setReviewModalBooking(booking);
+    setReviewRating(5);
+    setReviewComment('');
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewModalBooking) return;
+    setSubmittingReview(true);
+    try {
+      const created = await createReview(token, {
+        bookingId: reviewModalBooking._id,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      setReviewsMap(prev => ({ ...prev, [reviewModalBooking._id]: created }));
+      toastSuccess('Thank you! Your review has been published.');
+      setReviewModalBooking(null);
+    } catch (err) {
+      toastError(err.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -240,6 +297,8 @@ export default function MyBookings() {
             const isPending   = b.paymentStatus === 'pending' && b.status === 'pending';
             const isCancelled = b.status === 'cancelled' || b.status === 'failed';
             const price       = b.amount ? b.amount / 100 : (b.serviceId?.price || 500);
+            const review      = reviewsMap[b._id];
+            const vendorId    = b.vendorId?._id || b.vendorId;
 
             return (
               <div
@@ -260,8 +319,29 @@ export default function MyBookings() {
                       </Badge>
                     </div>
                     <p className="text-xs text-zinc-500">
-                      Provided by <strong className="text-zinc-700 font-medium">{b.vendorId?.name ?? 'Verified Vendor'}</strong>
+                      Provided by{' '}
+                      {vendorId ? (
+                        <Link to={`/vendor/${vendorId}`} className="text-zinc-700 font-semibold hover:text-blue-600 hover:underline">
+                          {b.vendorId?.name ?? 'Verified Vendor'}
+                        </Link>
+                      ) : (
+                        <strong className="text-zinc-700 font-medium">{b.vendorId?.name ?? 'Verified Vendor'}</strong>
+                      )}
                     </p>
+
+                    {/* Review snippet if submitted */}
+                    {review && (
+                      <div className="flex items-center gap-1.5 pt-1 text-xs text-amber-600 font-medium">
+                        <div className="flex items-center">
+                          {[...Array(review.rating)].map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          ))}
+                        </div>
+                        <span className="text-zinc-600 font-normal">
+                          "{review.comment || 'Rated service'}"
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Middle: Appointment Date & Time */}
@@ -275,7 +355,7 @@ export default function MyBookings() {
                   </div>
 
                   {/* Right: Price & Actions */}
-                  <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t sm:border-t-0 border-border">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-border">
                     <div className="font-mono font-semibold text-lg text-zinc-900 sm:text-right">
                       ₹{price}
                     </div>
@@ -296,6 +376,20 @@ export default function MyBookings() {
                           )}
                         </Button>
                       )}
+
+                      {/* Write Review Button for confirmed bookings without a review */}
+                      {isPaid && !review && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReviewModal(b)}
+                          className="border-amber-300 text-amber-800 hover:bg-amber-50 text-xs h-8 px-2.5 gap-1 font-medium"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          Review
+                        </Button>
+                      )}
+
                       {!isCancelled && (
                         <Button
                           variant="outline"
@@ -318,6 +412,103 @@ export default function MyBookings() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewModalBooking && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-border shadow-xl p-6 relative animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => setReviewModalBooking(null)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 p-1 rounded-md"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h2 className="text-lg font-bold text-zinc-900 mb-1">
+              Review your service
+            </h2>
+            <p className="text-xs text-zinc-500 mb-5">
+              How was your appointment for <strong className="text-zinc-700">{reviewModalBooking.serviceId?.name}</strong>?
+            </p>
+
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              {/* Star selector */}
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-2">
+                  Your Rating
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map(star => {
+                      const active = (hoverRating || reviewRating) >= star;
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onMouseEnter={() => setHoverRating(star)}
+                          onMouseLeave={() => setHoverRating(0)}
+                          onClick={() => setReviewRating(star)}
+                          className="p-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20 rounded"
+                        >
+                          <Star
+                            className={`w-7 h-7 transition-colors ${
+                              active
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'text-zinc-200 hover:text-zinc-300'
+                            }`}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="text-xs font-semibold text-zinc-700 ml-2">
+                    {RATING_LABELS[hoverRating || reviewRating]}
+                  </span>
+                </div>
+              </div>
+
+              {/* Feedback comment */}
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1.5">
+                  Comments (optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  placeholder="Share details of your experience, punctuality, quality of work…"
+                  className="w-full text-xs p-3 rounded-lg border border-border focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none outline-none text-zinc-800 placeholder:text-zinc-400"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReviewModalBooking(null)}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={submittingReview}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4"
+                >
+                  {submittingReview ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Submitting…</>
+                  ) : (
+                    'Submit Review'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

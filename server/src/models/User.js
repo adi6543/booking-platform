@@ -21,6 +21,39 @@ const userSchema = new mongoose.Schema({
     enum: ['customer', 'vendor'],
     required: true,
   },
+  // Vendor profile fields
+  phone: {
+    type: String,
+    trim: true,
+  },
+  businessName: {
+    type: String,
+    trim: true,
+  },
+  businessDescription: {
+    type: String,
+    trim: true,
+    maxlength: 500,
+  },
+  category: {
+    type: String,
+    enum: [
+      'plumbing', 'salon', 'cleaning', 'electrician',
+      'tutor', 'appliance-repair', 'painting', 'carpentry', 'other'
+    ],
+  },
+  city: {
+    type: String,
+    trim: true,
+  },
+  area: {
+    type: String,
+    trim: true,
+  },
+  pinCode: {
+    type: String,
+    trim: true,
+  },
   pauseUntil: {
     type: Date,
   },
